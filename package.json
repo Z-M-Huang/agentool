@@ -1,0 +1,136 @@
+{
+  "name": "agentool",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A comprehensive toolkit of AI agent tools",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./bash": {
+      "types": "./dist/bash/index.d.ts",
+      "import": "./dist/bash/index.js",
+      "require": "./dist/bash/index.cjs"
+    },
+    "./grep": {
+      "types": "./dist/grep/index.d.ts",
+      "import": "./dist/grep/index.js",
+      "require": "./dist/grep/index.cjs"
+    },
+    "./glob": {
+      "types": "./dist/glob/index.d.ts",
+      "import": "./dist/glob/index.js",
+      "require": "./dist/glob/index.cjs"
+    },
+    "./read": {
+      "types": "./dist/read/index.d.ts",
+      "import": "./dist/read/index.js",
+      "require": "./dist/read/index.cjs"
+    },
+    "./edit": {
+      "types": "./dist/edit/index.d.ts",
+      "import": "./dist/edit/index.js",
+      "require": "./dist/edit/index.cjs"
+    },
+    "./write": {
+      "types": "./dist/write/index.d.ts",
+      "import": "./dist/write/index.js",
+      "require": "./dist/write/index.cjs"
+    },
+    "./web-fetch": {
+      "types": "./dist/web-fetch/index.d.ts",
+      "import": "./dist/web-fetch/index.js",
+      "require": "./dist/web-fetch/index.cjs"
+    },
+    "./memory": {
+      "types": "./dist/memory/index.d.ts",
+      "import": "./dist/memory/index.js",
+      "require": "./dist/memory/index.cjs"
+    },
+    "./multi-edit": {
+      "types": "./dist/multi-edit/index.d.ts",
+      "import": "./dist/multi-edit/index.js",
+      "require": "./dist/multi-edit/index.cjs"
+    },
+    "./diff": {
+      "types": "./dist/diff/index.d.ts",
+      "import": "./dist/diff/index.js",
+      "require": "./dist/diff/index.cjs"
+    },
+    "./task": {
+      "types": "./dist/task/index.d.ts",
+      "import": "./dist/task/index.js",
+      "require": "./dist/task/index.cjs"
+    },
+    "./lsp": {
+      "types": "./dist/lsp/index.d.ts",
+      "import": "./dist/lsp/index.js",
+      "require": "./dist/lsp/index.cjs"
+    },
+    "./http-request": {
+      "types": "./dist/http-request/index.d.ts",
+      "import": "./dist/http-request/index.js",
+      "require": "./dist/http-request/index.cjs"
+    },
+    "./context-compaction": {
+      "types": "./dist/context-compaction/index.d.ts",
+      "import": "./dist/context-compaction/index.js",
+      "require": "./dist/context-compaction/index.cjs"
+    },
+    "./ask-user": {
+      "types": "./dist/ask-user/index.d.ts",
+      "import": "./dist/ask-user/index.js",
+      "require": "./dist/ask-user/index.cjs"
+    },
+    "./sleep": {
+      "types": "./dist/sleep/index.d.ts",
+      "import": "./dist/sleep/index.js",
+      "require": "./dist/sleep/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project unit",
+    "test:functional": "vitest run --project functional",
+    "lint": "eslint src/"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "ai": ">=4.0.0",
+    "zod": ">=3.23.0"
+  },
+  "dependencies": {
+    "diff": "^7.0.0",
+    "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "@ai-sdk/openai": "^3.0.50",
+    "@types/diff": "^7.0.0",
+    "@types/node": "^22.0.0",
+    "@types/turndown": "^5.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
+    "@vitest/coverage-v8": "^3.0.0",
+    "ai": "^6.0.0",
+    "dotenv": "^17.4.0",
+    "eslint": "^10.2.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^3.0.0",
+    "zod": "^3.25.0"
+  }
+}

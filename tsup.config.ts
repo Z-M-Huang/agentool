@@ -1,0 +1,29 @@
+import { defineConfig } from 'tsup';
+
+export default defineConfig({
+  entry: {
+    'index': 'src/index.ts',
+    'bash/index': 'src/bash/index.ts',
+    'grep/index': 'src/grep/index.ts',
+    'glob/index': 'src/glob/index.ts',
+    'read/index': 'src/read/index.ts',
+    'edit/index': 'src/edit/index.ts',
+    'write/index': 'src/write/index.ts',
+    'web-fetch/index': 'src/web-fetch/index.ts',
+    'memory/index': 'src/memory/index.ts',
+    'multi-edit/index': 'src/multi-edit/index.ts',
+    'diff/index': 'src/diff/index.ts',
+    'task/index': 'src/task/index.ts',
+    'lsp/index': 'src/lsp/index.ts',
+    'http-request/index': 'src/http-request/index.ts',
+    'context-compaction/index': 'src/context-compaction/index.ts',
+    'ask-user/index': 'src/ask-user/index.ts',
+    'sleep/index': 'src/sleep/index.ts',
+  },
+  format: ['esm', 'cjs'],
+  dts: true,
+  splitting: true,
+  clean: true,
+  external: ['ai', 'zod'],
+  target: 'node18',
+});

@@ -1,2 +1,655 @@
+<div align="center">
+
 # agentool
-Vercel ai-sdk tools from claude-code
+
+**16 AI agent tools as standalone [Vercel AI SDK](https://sdk.vercel.ai/) modules.**
+
+  <p>
+  <a href="https://www.npmjs.com/package/agentool"><img src="https://img.shields.io/npm/v/agentool?style=flat-square&color=cb3837&logo=npm" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/agentool"><img src="https://img.shields.io/npm/dm/agentool?style=flat-square&color=cb3837&logo=npm" alt="npm downloads" /></a>
+  <a href="https://github.com/Z-M-Huang/agentool"><img src="https://img.shields.io/github/stars/Z-M-Huang/agentool?style=flat-square&logo=github" alt="GitHub stars" /></a>
+  <a href="https://github.com/Z-M-Huang/agentool/issues"><img src="https://img.shields.io/github/issues/Z-M-Huang/agentool?style=flat-square&logo=github" alt="GitHub issues" /></a>
+  <a href="https://github.com/Z-M-Huang/agentool/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Z-M-Huang/agentool?style=flat-square" alt="License" /></a>
+  </p>
+  <p>
+  <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js" />
+  <img src="https://img.shields.io/badge/TypeScript-5.7+-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vercel%20AI%20SDK-v4%2B-000000?style=flat-square&logo=vercel&logoColor=white" alt="Vercel AI SDK" />
+  <img src="https://img.shields.io/badge/ESM%20%2B%20CJS-supported-22c55e?style=flat-square" alt="ESM + CJS" />
+  <img src="https://img.shields.io/badge/coverage-96%25-brightgreen?style=flat-square" alt="Test Coverage" />
+  <img src="https://visitor-badge.laobi.icu/badge?page_id=Z-M-Huang.agentool&style=flat-square" alt="Visitors" />
+  </p>
+</div>
+
+File operations, shell execution, code search, web fetching, and more -- everything an AI agent needs to interact with a codebase and system.
+
+---
+
+## Features
+
+- **16 production-ready tools** -- bash, grep, glob, read, edit, write, web-fetch, memory, multi-edit, diff, task, lsp, http-request, context-compaction, ask-user, sleep
+- **Vercel AI SDK compatible** -- works with `generateText()`, `streamText()`, and any AI SDK provider (OpenAI, Anthropic, Google, etc.)
+- **Factory + default pattern** -- `createBash({ cwd: '/my/project' })` for custom config, or just use `bash` with zero config
+- **Dual ESM/CJS** -- works everywhere with proper `exports` map
+- **TypeScript-first** -- full type declarations, strict mode, no `any`
+- **Never throws** -- every `execute()` returns a descriptive error string instead of throwing
+- **Tree-shakeable** -- 17 subpath exports, only import what you need
+
+## Installation
+
+```bash
+npm install agentool ai zod
+```
+
+> `ai` and `zod` are peer dependencies. You also need an AI SDK provider like `@ai-sdk/openai`, `@ai-sdk/anthropic`, etc.
+
+### Prerequisites
+
+- **Node.js >= 18**
+- **[ripgrep](https://github.com/BurntSushi/ripgrep#installation)** (`rg`) -- required for `grep` and `glob` tools
+
+```bash
+# macOS
+brew install ripgrep
+
+# Ubuntu/Debian
+sudo apt install ripgrep
+
+# Windows
+choco install ripgrep
+```
+
+## Quick Start
+
+```typescript
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { bash, read, edit, glob, grep } from 'agentool';
+
+const { text } = await generateText({
+  model: openai('gpt-4o'),
+  tools: { bash, read, edit, glob, grep },
+  maxSteps: 10,
+  prompt: 'Find all TypeScript files with TODO comments and list them',
+});
+```
+
+### Tree-shake with subpath imports
+
+```typescript
+// Only import what you need -- no unused code loaded
+import { bash } from 'agentool/bash';
+import { grep } from 'agentool/grep';
+```
+
+### Custom configuration
+
+Use factory functions when you need to configure tools (custom `cwd`, timeouts, etc.):
+
+```typescript
+import { createBash } from 'agentool/bash';
+import { createRead } from 'agentool/read';
+
+const myBash = createBash({ cwd: '/my/project', timeout: 60000 });
+const myRead = createRead({ cwd: '/my/project' });
+
+// Use them like any other tool
+const { text } = await generateText({
+  model: openai('gpt-4o'),
+  tools: { bash: myBash, read: myRead },
+  maxSteps: 10,
+  prompt: 'List all files and read package.json',
+});
+```
+
+## Tools Reference
+
+### bash
+
+Execute shell commands with timeout and signal handling.
+
+```typescript
+import { bash } from 'agentool/bash';
+
+const result = await bash.execute(
+  { command: 'echo hello && ls -la' },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+With custom config:
+
+```typescript
+import { createBash } from 'agentool/bash';
+
+const bash = createBash({
+  cwd: '/my/project',
+  timeout: 60000,    // 60s timeout (default: 120s)
+  shell: '/bin/zsh', // custom shell
+});
+```
+
+**Parameters:** `command` (string), `timeout?` (number), `description?` (string)
+
+---
+
+### read
+
+Read files with line numbers, offset/limit pagination, and dual-path reading (fast for <10MB, streaming for larger).
+
+```typescript
+import { read } from 'agentool/read';
+
+// Read entire file
+const content = await read.execute(
+  { file_path: '/app/src/index.ts' },
+  { toolCallId: 'id', messages: [] },
+);
+// Returns: "1\texport function hello() {\n2\t  return 'world';\n3\t}"
+
+// Read specific range
+const range = await read.execute(
+  { file_path: '/app/src/index.ts', offset: 10, limit: 20 },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `file_path` (string), `offset?` (number), `limit?` (number)
+
+---
+
+### edit
+
+Exact string replacement with curly-quote normalization fallback.
+
+```typescript
+import { edit } from 'agentool/edit';
+
+const result = await edit.execute(
+  {
+    file_path: '/app/src/config.ts',
+    old_string: 'const PORT = 3000;',
+    new_string: 'const PORT = 8080;',
+  },
+  { toolCallId: 'id', messages: [] },
+);
+
+// Replace all occurrences
+const resultAll = await edit.execute(
+  {
+    file_path: '/app/src/config.ts',
+    old_string: 'localhost',
+    new_string: '0.0.0.0',
+    replace_all: true,
+  },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `file_path` (string), `old_string` (string), `new_string` (string), `replace_all?` (boolean)
+
+---
+
+### write
+
+Write files with automatic parent directory creation.
+
+```typescript
+import { write } from 'agentool/write';
+
+const result = await write.execute(
+  {
+    file_path: '/app/src/utils/helpers.ts',
+    content: 'export function add(a: number, b: number) {\n  return a + b;\n}\n',
+  },
+  { toolCallId: 'id', messages: [] },
+);
+// Returns: "Created file: /app/src/utils/helpers.ts (62 bytes)"
+```
+
+**Parameters:** `file_path` (string), `content` (string)
+
+---
+
+### grep
+
+Search file contents with ripgrep. Three output modes, context lines, pagination.
+
+```typescript
+import { grep } from 'agentool/grep';
+
+// Find matching lines with context
+const content = await grep.execute(
+  { pattern: 'TODO|FIXME', output_mode: 'content', '-C': 2 },
+  { toolCallId: 'id', messages: [] },
+);
+
+// List files containing matches (sorted by mtime)
+const files = await grep.execute(
+  { pattern: 'import.*react', output_mode: 'files_with_matches', glob: '*.tsx' },
+  { toolCallId: 'id', messages: [] },
+);
+
+// Count matches per file
+const counts = await grep.execute(
+  { pattern: 'console\\.log', output_mode: 'count' },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `pattern` (string), `path?` (string), `output_mode?` (`'content'` | `'files_with_matches'` | `'count'`), `glob?` (string), `type?` (string), `-i?` (boolean), `-n?` (boolean), `-A?` (number), `-B?` (number), `-C?` / `context?` (number), `head_limit?` (number), `offset?` (number), `multiline?` (boolean)
+
+---
+
+### glob
+
+Find files by pattern with ripgrep, sorted by modification time.
+
+```typescript
+import { glob } from 'agentool/glob';
+
+const result = await glob.execute(
+  { pattern: '**/*.test.ts' },
+  { toolCallId: 'id', messages: [] },
+);
+// Returns: "Found 27 files\n/app/tests/unit/bash.test.ts\n..."
+
+// Search in specific directory
+const result2 = await glob.execute(
+  { pattern: '*.json', path: '/app/config' },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `pattern` (string), `path?` (string)
+
+---
+
+### multi-edit
+
+Atomically apply multiple edits to a single file. All succeed or none are applied.
+
+```typescript
+import { multiEdit } from 'agentool/multi-edit';
+
+const result = await multiEdit.execute(
+  {
+    file_path: '/app/src/config.ts',
+    edits: [
+      { old_string: 'const PORT = 3000;', new_string: 'const PORT = 8080;' },
+      { old_string: "const HOST = 'localhost';", new_string: "const HOST = '0.0.0.0';" },
+    ],
+  },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `file_path` (string), `edits` (array of `{ old_string, new_string }`)
+
+---
+
+### diff
+
+Generate unified diffs between files or strings.
+
+```typescript
+import { diff } from 'agentool/diff';
+
+// Compare two files
+const fileDiff = await diff.execute(
+  { file_path: '/app/old.ts', other_file_path: '/app/new.ts' },
+  { toolCallId: 'id', messages: [] },
+);
+
+// Compare strings
+const stringDiff = await diff.execute(
+  { old_content: 'hello world', new_content: 'hello universe' },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `file_path?` (string), `other_file_path?` (string), `old_content?` (string), `new_content?` (string)
+
+---
+
+### web-fetch
+
+Fetch URLs with automatic HTML-to-markdown conversion.
+
+```typescript
+import { webFetch } from 'agentool/web-fetch';
+
+const result = await webFetch.execute(
+  { url: 'https://example.com' },
+  { toolCallId: 'id', messages: [] },
+);
+// Returns markdown content (HTML converted via Turndown, truncated at 100K chars)
+```
+
+**Parameters:** `url` (string), `prompt?` (string)
+
+---
+
+### http-request
+
+Make raw HTTP requests without markdown conversion.
+
+```typescript
+import { httpRequest } from 'agentool/http-request';
+
+const result = await httpRequest.execute(
+  {
+    method: 'POST',
+    url: 'https://api.example.com/data',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: 'value' }),
+    timeout: 5000,
+  },
+  { toolCallId: 'id', messages: [] },
+);
+// Returns JSON: { status, statusText, headers, body }
+```
+
+**Parameters:** `method` (`'GET'` | `'POST'` | `'PUT'` | `'PATCH'` | `'DELETE'` | `'HEAD'`), `url` (string), `headers?` (object), `body?` (string), `timeout?` (number)
+
+---
+
+### memory
+
+File-based key-value store for persistent agent memory.
+
+```typescript
+import { memory } from 'agentool/memory';
+
+// Write
+await memory.execute(
+  { action: 'write', key: 'user-prefs', content: 'Prefers dark mode' },
+  { toolCallId: 'id', messages: [] },
+);
+
+// Read
+const data = await memory.execute(
+  { action: 'read', key: 'user-prefs' },
+  { toolCallId: 'id', messages: [] },
+);
+
+// List all keys
+const keys = await memory.execute(
+  { action: 'list' },
+  { toolCallId: 'id', messages: [] },
+);
+
+// Delete
+await memory.execute(
+  { action: 'delete', key: 'user-prefs' },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `action` (`'read'` | `'write'` | `'list'` | `'delete'`), `key?` (string), `content?` (string)
+
+---
+
+### task
+
+JSON file-based task tracker for agent workflows.
+
+```typescript
+import { task } from 'agentool/task';
+
+// Create
+const created = await task.execute(
+  { action: 'create', subject: 'Fix login bug', description: 'Auth fails on refresh' },
+  { toolCallId: 'id', messages: [] },
+);
+
+// List all
+const list = await task.execute(
+  { action: 'list' },
+  { toolCallId: 'id', messages: [] },
+);
+
+// Update status
+await task.execute(
+  { action: 'update', id: 'abc123', status: 'completed' },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `action` (`'create'` | `'get'` | `'update'` | `'list'` | `'delete'`), `id?` (string), `subject?` (string), `description?` (string), `status?` (`'pending'` | `'in_progress'` | `'completed'`)
+
+---
+
+### lsp
+
+Language Server Protocol operations for code intelligence.
+
+```typescript
+import { createLsp } from 'agentool/lsp';
+
+const lsp = createLsp({
+  servers: {
+    '.ts': { command: 'typescript-language-server', args: ['--stdio'] },
+    '.py': { command: 'pylsp' },
+  },
+});
+
+const result = await lsp.execute(
+  { operation: 'goToDefinition', filePath: 'src/index.ts', line: 10, character: 5 },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `operation` (`'goToDefinition'` | `'findReferences'` | `'hover'` | `'documentSymbol'` | `'workspaceSymbol'` | `'goToImplementation'` | `'incomingCalls'` | `'outgoingCalls'`), `filePath` (string), `line?` (number), `character?` (number), `query?` (string)
+
+---
+
+### context-compaction
+
+Compact conversation history to fit within token budgets.
+
+```typescript
+import { createContextCompaction } from 'agentool/context-compaction';
+
+const compact = createContextCompaction({
+  maxTokens: 4096,
+  summarize: async (messages) => {
+    // Call your LLM to summarize
+    return 'Summary of previous conversation...';
+  },
+});
+
+const result = await compact.execute(
+  {
+    messages: [
+      { role: 'user', content: 'Long conversation...' },
+      { role: 'assistant', content: 'Long response...' },
+    ],
+  },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `messages` (array of `{ role, content }`), `maxTokens?` (number)
+
+---
+
+### ask-user
+
+Prompt the user for input during agent execution.
+
+```typescript
+import { createAskUser } from 'agentool/ask-user';
+
+const askUser = createAskUser({
+  onQuestion: async (question, options) => {
+    // Your UI logic to prompt the user
+    return 'User response here';
+  },
+});
+
+const answer = await askUser.execute(
+  { question: 'Which database should I use?', options: ['PostgreSQL', 'MySQL', 'SQLite'] },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `question` (string), `options?` (string[])
+
+---
+
+### sleep
+
+Pause execution for rate limiting or polling intervals.
+
+```typescript
+import { sleep } from 'agentool/sleep';
+
+const result = await sleep.execute(
+  { durationMs: 2000, reason: 'Waiting for deployment' },
+  { toolCallId: 'id', messages: [] },
+);
+// Returns: "Slept for 2001ms. Reason: Waiting for deployment"
+```
+
+**Parameters:** `durationMs` (number, max 300000), `reason?` (string)
+
+## Configuration
+
+Every tool follows the **factory + default** pattern:
+
+```typescript
+// Default instance -- uses process.cwd(), default timeouts
+import { bash } from 'agentool/bash';
+
+// Custom instance -- configure cwd, timeouts, and tool-specific options
+import { createBash } from 'agentool/bash';
+const myBash = createBash({
+  cwd: '/my/project',
+  timeout: 60000,
+  shell: '/bin/zsh',
+});
+```
+
+### Base configuration
+
+All tools accept `BaseToolConfig`:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `cwd` | `string` | `process.cwd()` | Working directory for file operations |
+
+Tools that support timeouts extend `TimeoutConfig`:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `timeout` | `number` | varies | Timeout in milliseconds |
+
+### Tool-specific configuration
+
+| Tool | Extra Config |
+|------|-------------|
+| `bash` | `shell?: string` -- shell binary path |
+| `read` | `maxLines?: number` -- max lines to return (default: 2000) |
+| `memory` | `memoryDir?: string` -- storage directory |
+| `task` | `tasksFile?: string` -- JSON file path |
+| `lsp` | `servers?: Record<string, LspServerConfig>` -- LSP servers by file extension |
+| `http-request` | `defaultHeaders?: Record<string, string>` -- headers merged into every request |
+| `web-fetch` | `maxContentLength?: number`, `userAgent?: string` |
+| `context-compaction` | `summarize?: (messages) => Promise<string>`, `maxTokens?: number` |
+| `ask-user` | `onQuestion?: (question, options?) => Promise<string>` |
+| `sleep` | `maxDuration?: number` -- cap in ms (default: 300000) |
+
+## Error Handling
+
+Every tool's `execute()` catches errors internally and returns a descriptive string -- **it never throws**:
+
+```typescript
+const result = await read.execute(
+  { file_path: '/nonexistent/file.ts' },
+  { toolCallId: 'id', messages: [] },
+);
+// Returns: "Error [read]: Failed to read file: ENOENT: no such file or directory..."
+```
+
+Error strings follow the format: `Error [tool-name]: {description}` with actionable context to help the AI model recover.
+
+## Imports
+
+### Barrel import (all tools)
+
+```typescript
+import {
+  bash, createBash,
+  read, createRead,
+  edit, createEdit,
+  write, createWrite,
+  grep, createGrep,
+  glob, createGlob,
+  webFetch, createWebFetch,
+  httpRequest, createHttpRequest,
+  memory, createMemory,
+  multiEdit, createMultiEdit,
+  diff, createDiff,
+  task, createTask,
+  lsp, createLsp,
+  contextCompaction, createContextCompaction,
+  askUser, createAskUser,
+  sleep, createSleep,
+} from 'agentool';
+```
+
+### Subpath imports (tree-shakeable)
+
+```typescript
+import { bash } from 'agentool/bash';
+import { grep } from 'agentool/grep';
+import { glob } from 'agentool/glob';
+import { read } from 'agentool/read';
+import { edit } from 'agentool/edit';
+import { write } from 'agentool/write';
+import { webFetch } from 'agentool/web-fetch';
+import { httpRequest } from 'agentool/http-request';
+import { memory } from 'agentool/memory';
+import { multiEdit } from 'agentool/multi-edit';
+import { diff } from 'agentool/diff';
+import { task } from 'agentool/task';
+import { lsp } from 'agentool/lsp';
+import { contextCompaction } from 'agentool/context-compaction';
+import { askUser } from 'agentool/ask-user';
+import { sleep } from 'agentool/sleep';
+```
+
+## Full Example: AI Coding Agent
+
+```typescript
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { bash, read, edit, write, glob, grep, diff } from 'agentool';
+
+const { text, steps } = await generateText({
+  model: openai('gpt-4o'),
+  tools: { bash, read, edit, write, glob, grep, diff },
+  maxSteps: 20,
+  system: `You are a coding assistant. You can read, search, edit, and write files.
+    Always read a file before editing it. Use grep to search for patterns.
+    Use glob to find files. Use bash for git, build, and test commands.`,
+  prompt: 'Find all console.log statements in src/ and replace them with proper logger calls',
+});
+
+console.log(`Completed in ${steps.length} steps`);
+console.log(text);
+```
+
+## Requirements
+
+| Dependency | Version | Required |
+|-----------|---------|----------|
+| Node.js | >= 18 | Yes |
+| `ai` (Vercel AI SDK) | >= 4.0.0 | Peer dependency |
+| `zod` | >= 3.23.0 | Peer dependency |
+| `ripgrep` (`rg`) | any | For grep/glob tools |
+
+## License
+
+[Apache-2.0](LICENSE)
