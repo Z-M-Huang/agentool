@@ -1,16 +1,19 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as toolSearchPrompt } from './prompt.js';
 
 export interface ToolSearchConfig {
   /** Registry of available tools to search through. */
   tools?: Record<string, { description: string }>;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 export function createToolSearch(config: ToolSearchConfig = {}) {
   return tool({
-    description:
-      'Search for available tools by name or keyword. ' +
-      'Returns matching tool names and descriptions.',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       query: z.string().describe('Query to find tools by name or keyword'),
       max_results: z

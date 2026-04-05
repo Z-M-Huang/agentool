@@ -1,6 +1,9 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as askUserPrompt } from './prompt.js';
 
 /**
  * Configuration for the ask-user tool.
@@ -24,6 +27,8 @@ export interface AskUserConfig extends BaseToolConfig {
    * @returns The user's response string
    */
   onQuestion?: (question: string, options?: string[]) => Promise<string>;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 /**
@@ -49,10 +54,7 @@ export interface AskUserConfig extends BaseToolConfig {
  */
 export function createAskUser(config: AskUserConfig = {}) {
   return tool({
-    description:
-      'Ask the user a question and wait for their response. ' +
-      'Use this when you need clarification, confirmation, or additional ' +
-      'information from the user before proceeding.',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       question: z.string().describe('The question to ask the user'),
       options: z

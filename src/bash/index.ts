@@ -2,6 +2,9 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import type { TimeoutConfig } from '../shared/types.js';
 import { executeShell } from '../shared/shell.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as bashPrompt } from './prompt.js';
 
 /**
  * Configuration for the bash tool.
@@ -16,6 +19,8 @@ import { executeShell } from '../shared/shell.js';
 export interface BashConfig extends TimeoutConfig {
   /** Shell binary to use. Defaults to `$SHELL` or `/bin/bash`. */
   shell?: string;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 /**
@@ -44,11 +49,7 @@ export function createBash(config: BashConfig = {}) {
   const timeout = config.timeout ?? 120_000;
 
   return tool({
-    description:
-      'Execute a shell command and return its output. ' +
-      'Runs the command in a bash shell with the configured working directory. ' +
-      'Returns stdout, stderr, and exit code. ' +
-      'Use this for running build commands, git operations, system administration, and any other shell tasks.',
+    description: config.description ?? getPrompt(config),
     inputSchema: z.object({
       command: z.string().describe('The shell command to execute'),
       timeout: z

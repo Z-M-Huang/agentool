@@ -4,6 +4,9 @@ import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath } from '../shared/path.js';
 import { diffStrings, diffFiles } from '../shared/diff.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as diffPrompt } from './prompt.js';
 
 /**
  * Configuration for the diff tool.
@@ -14,7 +17,10 @@ import { diffStrings, diffFiles } from '../shared/diff.js';
  * const config: DiffConfig = { cwd: '/my/project' };
  * ```
  */
-export type DiffConfig = BaseToolConfig;
+export type DiffConfig = BaseToolConfig & {
+  /** Override the default tool description. */
+  description?: string;
+};
 
 /**
  * Creates a diff tool that generates unified diffs between files or strings.
@@ -53,12 +59,7 @@ export function createDiff(config: DiffConfig = {}) {
   const cwd = config.cwd ?? process.cwd();
 
   return tool({
-    description:
-      'Generate a unified diff between two files or two strings. ' +
-      'Provide file_path + other_file_path to compare files, ' +
-      'or old_content + new_content to compare strings. ' +
-      'You can also provide file_path with old_content or new_content ' +
-      'to compare a file against provided content.',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       file_path: z
         .string()

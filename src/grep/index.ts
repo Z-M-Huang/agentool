@@ -4,6 +4,9 @@ import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath, toRelativePath } from '../shared/path.js';
 import { executeRipgrep } from '../shared/ripgrep.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as grepPrompt } from './prompt.js';
 
 const VCS_DIRS = ['.git', '.svn', '.hg', '.bzr', '.jj', '.sl'] as const;
 const DEFAULT_HEAD_LIMIT = 250;
@@ -63,14 +66,11 @@ function parseGlobPatterns(globFilter: string): string[] {
  * @param config - Optional configuration with a custom working directory.
  * @returns A Vercel AI SDK tool with `description`, `parameters`, and `execute`.
  */
-export function createGrep(config: BaseToolConfig = {}) {
+export function createGrep(config: GrepConfig = {}) {
   const cwd = config.cwd ?? process.cwd();
 
   return tool({
-    description:
-      'Search file contents using ripgrep. ' +
-      'Supports regex patterns, context lines, and three output modes: ' +
-      '"content" (matching lines), "files_with_matches" (file paths), and "count" (match counts).',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       pattern: z.string().describe('The regular expression pattern to search for in file contents'),
       path: z.string().optional().describe('File or directory to search in (rg PATH). Defaults to current working directory.'),
@@ -189,6 +189,9 @@ export function createGrep(config: BaseToolConfig = {}) {
 /**
  * Default grep tool instance using the current working directory.
  */
-export type GrepConfig = BaseToolConfig;
+export type GrepConfig = BaseToolConfig & {
+  /** Override the default tool description. */
+  description?: string;
+};
 
 export const grep = createGrep();

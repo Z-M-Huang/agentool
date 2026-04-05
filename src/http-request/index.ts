@@ -1,6 +1,9 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { TimeoutConfig } from '../shared/types.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as httpRequestPrompt } from './prompt.js';
 
 /**
  * Configuration for the HTTP request tool.
@@ -18,6 +21,8 @@ import type { TimeoutConfig } from '../shared/types.js';
 export interface HttpRequestConfig extends TimeoutConfig {
   /** Headers merged into every request (per-request headers take precedence). */
   defaultHeaders?: Record<string, string>;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 /**
@@ -36,11 +41,7 @@ export interface HttpRequestConfig extends TimeoutConfig {
  */
 export function createHttpRequest(config: HttpRequestConfig = {}) {
   return tool({
-    description:
-      'Make an HTTP request to a URL. Returns the response status, headers, ' +
-      'and body. Use this for API interactions, webhook calls, and service ' +
-      'health checks. Unlike web-fetch, this returns raw response data ' +
-      'without markdown conversion.',
+    description: config.description ?? getPrompt(config),
     inputSchema: z.object({
       method: z
         .enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'])

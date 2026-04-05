@@ -1,6 +1,9 @@
 import { tool, zodSchema } from 'ai';
 import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as contextCompactionPrompt } from './prompt.js';
 
 /**
  * Configuration for the context compaction tool.
@@ -26,6 +29,8 @@ export interface ContextCompactionConfig extends BaseToolConfig {
   ) => Promise<string>;
   /** Maximum tokens target. Defaults to 4096. */
   maxTokens?: number;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 /** Zod schema for context compaction parameters. */
@@ -73,10 +78,7 @@ export function createContextCompaction(
   config: ContextCompactionConfig = {},
 ) {
   return tool({
-    description:
-      'Compact conversation history by summarizing older messages to reduce ' +
-      'context size. Requires a summarize function in config. Returns compacted ' +
-      'messages where total chars < maxTokens * 4.',
+    description: config.description ?? getPrompt(config),
     inputSchema: zodSchema(parametersSchema),
     execute: async ({
       messages,

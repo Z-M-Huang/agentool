@@ -3,10 +3,15 @@ import { z } from 'zod';
 import { join } from 'node:path';
 import type { BaseToolConfig } from '../shared/types.js';
 import { generateId, loadTasks, saveTasks, formatTask, type Task } from '../shared/task-store.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as taskCreatePrompt } from './prompt.js';
 
 export interface TaskCreateConfig extends BaseToolConfig {
   /** Path to the tasks JSON file. Defaults to `<cwd>/.agentool/tasks.json`. */
   tasksFile?: string;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 export function createTaskCreate(config: TaskCreateConfig = {}) {
@@ -14,9 +19,7 @@ export function createTaskCreate(config: TaskCreateConfig = {}) {
   const tasksFile = config.tasksFile ?? join(cwd, '.agentool', 'tasks.json');
 
   return tool({
-    description:
-      'Create a new task to track work. Each task gets a unique ID, ' +
-      'starts with "pending" status, and can include optional metadata.',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       subject: z.string().describe('A brief title for the task'),
       description: z.string().describe('What needs to be done'),

@@ -5,12 +5,17 @@ import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { resolve, extname } from 'node:path';
 import type { BaseToolConfig } from '../shared/types.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as lspPrompt } from './prompt.js';
 
 export interface LspServerConfig { command: string; args?: string[] }
 
 export interface LspConfig extends BaseToolConfig {
   servers?: Record<string, LspServerConfig>;
   timeout?: number;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 let nextId = 1;
@@ -171,11 +176,7 @@ export function createLsp(config: LspConfig = {}) {
   const timeoutMs = config.timeout ?? 30_000;
 
   return tool({
-    description:
-      'Perform language server operations like go-to-definition, find-references, ' +
-      'and hover. Requires LSP server configuration. Supports 9 operations: ' +
-      'goToDefinition, findReferences, hover, documentSymbol, workspaceSymbol, ' +
-      'goToImplementation, prepareCallHierarchy, incomingCalls, outgoingCalls.',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       operation: z.enum(LSP_OPERATIONS).describe('The LSP operation to perform'),
       filePath: z.string().describe('Path to the file'),

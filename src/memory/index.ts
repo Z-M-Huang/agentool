@@ -4,6 +4,9 @@ import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { BaseToolConfig } from '../shared/types.js';
 import { containsPathTraversal } from '../shared/path.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as memoryPrompt } from './prompt.js';
 
 /**
  * Configuration for the memory tool.
@@ -18,6 +21,8 @@ import { containsPathTraversal } from '../shared/path.js';
 export interface MemoryConfig extends BaseToolConfig {
   /** Directory for memory files. Defaults to `<cwd>/.agentool/memory`. */
   memoryDir?: string;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 /**
@@ -63,10 +68,7 @@ export function createMemory(config: MemoryConfig = {}) {
   const memoryDir = config.memoryDir ?? join(cwd, '.agentool', 'memory');
 
   return tool({
-    description:
-      'File-based key-value memory store. ' +
-      'Use this to persist notes, context, or any text data across conversations. ' +
-      'Supports write, read, list, and delete operations.',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       action: z.enum(['read', 'write', 'list', 'delete']).describe(
         'The operation to perform: read, write, list, or delete',

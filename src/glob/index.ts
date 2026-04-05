@@ -3,6 +3,9 @@ import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath } from '../shared/path.js';
 import { glob as sharedGlob } from '../shared/glob.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as globPrompt } from './prompt.js';
 
 /**
  * Creates a glob tool that finds files matching a pattern.
@@ -25,14 +28,11 @@ import { glob as sharedGlob } from '../shared/glob.js';
  * );
  * ```
  */
-export function createGlob(config: BaseToolConfig = {}) {
+export function createGlob(config: GlobConfig = {}) {
   const cwd = config.cwd ?? process.cwd();
 
   return tool({
-    description:
-      'Find files matching a glob pattern. ' +
-      'Returns absolute file paths sorted by modification time (newest first). ' +
-      'Supports patterns like "**/*.ts", "src/**/*.js", or "*.json".',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       pattern: z.string().describe('Glob pattern to match files against'),
       path: z
@@ -75,6 +75,9 @@ export function createGlob(config: BaseToolConfig = {}) {
  * );
  * ```
  */
-export type GlobConfig = BaseToolConfig;
+export type GlobConfig = BaseToolConfig & {
+  /** Override the default tool description. */
+  description?: string;
+};
 
 export const glob = createGlob();

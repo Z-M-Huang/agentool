@@ -3,10 +3,15 @@ import { z } from 'zod';
 import { join } from 'node:path';
 import type { BaseToolConfig } from '../shared/types.js';
 import { loadTasks, saveTasks, formatTask } from '../shared/task-store.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as taskUpdatePrompt } from './prompt.js';
 
 export interface TaskUpdateConfig extends BaseToolConfig {
   /** Path to the tasks JSON file. Defaults to `<cwd>/.agentool/tasks.json`. */
   tasksFile?: string;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 export function createTaskUpdate(config: TaskUpdateConfig = {}) {
@@ -14,9 +19,7 @@ export function createTaskUpdate(config: TaskUpdateConfig = {}) {
   const tasksFile = config.tasksFile ?? join(cwd, '.agentool', 'tasks.json');
 
   return tool({
-    description:
-      'Update a task by its ID. Can change status, subject, description, ' +
-      'owner, metadata, and dependency relationships.',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       taskId: z.string().describe('The ID of the task to update'),
       subject: z.string().optional().describe('New subject for the task'),

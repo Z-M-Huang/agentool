@@ -1,5 +1,8 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as webSearchPrompt } from './prompt.js';
 
 export interface WebSearchConfig {
   /** Callback to perform the actual search. Users provide their own implementation. */
@@ -7,13 +10,13 @@ export interface WebSearchConfig {
     query: string,
     opts: { allowed_domains?: string[]; blocked_domains?: string[] },
   ) => Promise<string>;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 export function createWebSearch(config: WebSearchConfig = {}) {
   return tool({
-    description:
-      'Search the web for information using a search query. ' +
-      'Results can be filtered by allowed or blocked domains.',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       query: z.string().min(2).describe('The search query to use'),
       allowed_domains: z

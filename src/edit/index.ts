@@ -3,8 +3,14 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath } from '../shared/path.js';
+import { getPrompt } from './prompt.js';
 
-export type EditConfig = BaseToolConfig;
+export { getPrompt as editPrompt } from './prompt.js';
+
+export type EditConfig = BaseToolConfig & {
+  /** Override the default tool description. */
+  description?: string;
+};
 import {
   findActualString,
   preserveQuoteStyle,
@@ -34,13 +40,9 @@ import {
  * );
  * ```
  */
-export function createEdit(config: BaseToolConfig = {}) {
+export function createEdit(config: EditConfig = {}) {
   return tool({
-    description:
-      'Perform an exact string replacement in a file. ' +
-      'Locates old_string in the file and replaces it with new_string. ' +
-      'Supports curly-quote fallback matching. ' +
-      'When replace_all is false (default), old_string must appear exactly once.',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       file_path: z.string().describe('The absolute path to the file to modify'),
       old_string: z.string().describe('The exact string to find and replace'),

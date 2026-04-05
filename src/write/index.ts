@@ -3,8 +3,14 @@ import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath } from '../shared/path.js';
 import { pathExists, writeTextContent } from '../shared/file.js';
+import { getPrompt } from './prompt.js';
 
-export type WriteConfig = BaseToolConfig;
+export { getPrompt as writePrompt } from './prompt.js';
+
+export type WriteConfig = BaseToolConfig & {
+  /** Override the default tool description. */
+  description?: string;
+};
 
 /**
  * Creates a write tool that writes text content to a file.
@@ -27,14 +33,11 @@ export type WriteConfig = BaseToolConfig;
  * );
  * ```
  */
-export function createWrite(config: BaseToolConfig = {}) {
+export function createWrite(config: WriteConfig = {}) {
   const cwd = config.cwd ?? process.cwd();
 
   return tool({
-    description:
-      'Write text content to a file, creating parent directories as needed. ' +
-      'If the file exists it is overwritten. ' +
-      'Use this to create new files or replace existing file contents.',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       file_path: z.string().describe('The absolute path to the file to write (must be absolute, not relative)'),
       content: z.string().describe('Text content to write to the file'),

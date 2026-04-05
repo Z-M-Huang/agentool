@@ -3,6 +3,9 @@ import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath } from '../shared/path.js';
 import { addLineNumbers, readFileInRange } from '../shared/file.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as readPrompt } from './prompt.js';
 
 /**
  * Configuration for the read tool.
@@ -20,6 +23,8 @@ export interface ReadConfig extends BaseToolConfig {
    * @default 2000
    */
   maxLines?: number;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 /**
@@ -49,12 +54,7 @@ export function createRead(config: ReadConfig = {}) {
   const defaultMaxLines = config.maxLines ?? 2000;
 
   return tool({
-    description:
-      'Read a file from the local filesystem and return its contents with line numbers. ' +
-      'Supports absolute paths, relative paths (resolved against the working directory), ' +
-      'and tilde (~) home directory expansion. ' +
-      'Returns numbered lines in "lineNumber\\tcontent" format. ' +
-      'Use offset and limit to read specific ranges of large files.',
+    description: config.description ?? getPrompt(config),
     inputSchema: z.object({
       file_path: z
         .string()

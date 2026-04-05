@@ -2,6 +2,9 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import type { TimeoutConfig } from '../shared/types.js';
 import { fetchUrl } from '../shared/fetch.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as webFetchPrompt } from './prompt.js';
 
 /**
  * Configuration for the web-fetch tool.
@@ -21,6 +24,8 @@ export interface WebFetchConfig extends TimeoutConfig {
   maxContentLength?: number;
   /** Custom User-Agent header sent with every request. */
   userAgent?: string;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 /**
@@ -39,11 +44,7 @@ export interface WebFetchConfig extends TimeoutConfig {
  */
 export function createWebFetch(config: WebFetchConfig = {}) {
   return tool({
-    description:
-      'Fetch a URL and return its content. HTML pages are automatically ' +
-      'converted to markdown for easier reading. JSON and other text ' +
-      'content is returned as-is. Content is truncated at 100,000 ' +
-      'characters to manage context size.',
+    description: config.description ?? getPrompt(config),
     inputSchema: z.object({
       url: z.string().url().describe('The URL to fetch'),
     }),

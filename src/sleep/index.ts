@@ -1,6 +1,9 @@
 import { tool, zodSchema } from 'ai';
 import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as sleepPrompt } from './prompt.js';
 
 /**
  * Configuration for the sleep tool.
@@ -19,6 +22,8 @@ export interface SleepConfig extends BaseToolConfig {
    * @default 300000 (5 minutes)
    */
   maxDuration?: number;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 /**
@@ -45,10 +50,7 @@ export function createSleep(config: SleepConfig = {}) {
   const maxDuration = config.maxDuration ?? 300_000;
 
   return tool({
-    description:
-      'Pause execution for a specified duration. ' +
-      'Useful for rate limiting, polling intervals, or waiting for external processes. ' +
-      'Maximum duration is 300 seconds (5 minutes).',
+    description: config.description ?? getPrompt(config),
     inputSchema: zodSchema(
       z.object({
         durationMs: z

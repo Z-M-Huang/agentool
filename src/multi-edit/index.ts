@@ -9,6 +9,9 @@ import {
   preserveQuoteStyle,
   applyEditToFile,
 } from '../shared/edit-helpers.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as multiEditPrompt } from './prompt.js';
 
 /**
  * Configuration for the multi-edit tool.
@@ -19,7 +22,10 @@ import {
  * const config: MultiEditConfig = { cwd: '/my/project' };
  * ```
  */
-export type MultiEditConfig = BaseToolConfig;
+export type MultiEditConfig = BaseToolConfig & {
+  /** Override the default tool description. */
+  description?: string;
+};
 
 /**
  * Count non-overlapping occurrences of `search` in `text`.
@@ -67,11 +73,7 @@ export function createMultiEdit(config: MultiEditConfig = {}) {
   const cwd = config.cwd ?? process.cwd();
 
   return tool({
-    description:
-      'Atomically apply multiple text edits to a single file. ' +
-      'All edits succeed together or none are applied (rollback on failure). ' +
-      'Each edit replaces one occurrence of old_string with new_string. ' +
-      'Edits are applied sequentially in the order provided.',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       file_path: z
         .string()

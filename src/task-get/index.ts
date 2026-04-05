@@ -3,10 +3,15 @@ import { z } from 'zod';
 import { join } from 'node:path';
 import type { BaseToolConfig } from '../shared/types.js';
 import { loadTasks, formatTask } from '../shared/task-store.js';
+import { getPrompt } from './prompt.js';
+
+export { getPrompt as taskGetPrompt } from './prompt.js';
 
 export interface TaskGetConfig extends BaseToolConfig {
   /** Path to the tasks JSON file. Defaults to `<cwd>/.agentool/tasks.json`. */
   tasksFile?: string;
+  /** Override the default tool description. */
+  description?: string;
 }
 
 export function createTaskGet(config: TaskGetConfig = {}) {
@@ -14,7 +19,7 @@ export function createTaskGet(config: TaskGetConfig = {}) {
   const tasksFile = config.tasksFile ?? join(cwd, '.agentool', 'tasks.json');
 
   return tool({
-    description: 'Retrieve a task by its ID to see full details.',
+    description: config.description ?? getPrompt(),
     inputSchema: z.object({
       taskId: z.string().describe('The ID of the task to retrieve'),
     }),
