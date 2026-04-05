@@ -41,7 +41,7 @@ describe('lsp tool', () => {
     it('returns error when servers map is empty', async () => {
       const t = createLsp({ servers: {} });
       const result = await t.execute(
-        { operation: 'goToDefinition', filePath: 'test.ts' },
+        { operation: 'goToDefinition', filePath: 'test.ts', line: 1, character: 1 },
         toolCtx,
       );
       expect(result).toContain('Error [lsp]');
@@ -61,6 +61,17 @@ describe('lsp tool', () => {
       expect(result).toContain('Error [lsp]');
       expect(result).toContain('No LSP server configured for .ts files');
       expect(result).toContain('.py');
+    });
+  });
+
+  describe('prepareCallHierarchy operation', () => {
+    it('accepts prepareCallHierarchy as a valid operation', async () => {
+      const result = await lsp.execute(
+        { operation: 'prepareCallHierarchy', filePath: 'test.ts', line: 1, character: 1 },
+        toolCtx,
+      );
+      expect(result).toContain('Error [lsp]');
+      expect(result).toContain('No LSP servers configured');
     });
   });
 
@@ -84,7 +95,8 @@ describe('lsp tool', () => {
   describe('operation enum', () => {
     const operations = [
       'goToDefinition', 'findReferences', 'hover', 'documentSymbol',
-      'workspaceSymbol', 'goToImplementation', 'incomingCalls', 'outgoingCalls',
+      'workspaceSymbol', 'goToImplementation', 'prepareCallHierarchy',
+      'incomingCalls', 'outgoingCalls',
     ] as const;
 
     for (const op of operations) {
@@ -92,7 +104,7 @@ describe('lsp tool', () => {
         // With no servers, each operation should hit the "no servers" error,
         // not a schema validation error.
         const result = await lsp.execute(
-          { operation: op, filePath: 'test.ts' },
+          { operation: op, filePath: 'test.ts', line: 1, character: 1 },
           toolCtx,
         );
         expect(result).toContain('Error [lsp]');
@@ -131,9 +143,9 @@ describe('lsp tool', () => {
         servers: { '.ts': { command: 'nonexistent-lsp-xyz' } },
         timeout: 2000,
       });
-      for (const op of ['goToDefinition', 'findReferences', 'documentSymbol', 'workspaceSymbol', 'goToImplementation', 'incomingCalls', 'outgoingCalls'] as const) {
+      for (const op of ['goToDefinition', 'findReferences', 'documentSymbol', 'workspaceSymbol', 'goToImplementation', 'prepareCallHierarchy', 'incomingCalls', 'outgoingCalls'] as const) {
         const result = await t.execute(
-          { operation: op, filePath: 'test.ts', line: 0, character: 0 },
+          { operation: op, filePath: 'test.ts', line: 1, character: 1 },
           toolCtx,
         );
         expect(result).toContain('Error [lsp]');
@@ -147,7 +159,7 @@ describe('lsp tool', () => {
         servers: { '.ts': { command: 'ts-server' } },
       });
       const result = await t.execute(
-        { operation: 'hover', filePath: 'Makefile', line: 0, character: 0 },
+        { operation: 'hover', filePath: 'Makefile', line: 1, character: 1 },
         toolCtx,
       );
       // "Makefile" has no ext, so extname returns '' and fallback is '.Makefile'
@@ -202,7 +214,7 @@ describe('lsp tool', () => {
     it('performs workspaceSymbol operation via JSON-RPC', async () => {
       const serverConfig: LspServerConfig = { command: process.execPath, args: [MOCK_LSP_SERVER] };
       const result = await executeLspOperation(serverConfig, {
-        operation: 'workspaceSymbol', filePath: 'test.ts', query: 'test', cwd: testCwd,
+        operation: 'workspaceSymbol', filePath: 'test.ts', cwd: testCwd,
       }, 10000);
       expect(result).toBeDefined();
     }, 15000);
@@ -238,7 +250,7 @@ describe('lsp tool', () => {
         cwd: testCwd,
       });
       const result = await t.execute(
-        { operation: 'hover', filePath: 'test.ts', line: 0, character: 0 },
+        { operation: 'hover', filePath: 'test.ts', line: 1, character: 1 },
         toolCtx,
       );
       expect(result).toContain('mock hover result');
@@ -297,7 +309,7 @@ describe('lsp tool', () => {
         cwd: extCwd,
       });
       const result = await t.execute(
-        { operation: 'hover', filePath: 'Makefile', line: 0, character: 0 },
+        { operation: 'hover', filePath: 'Makefile', line: 1, character: 1 },
         toolCtx,
       );
       // Should succeed with mock server

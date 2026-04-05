@@ -58,15 +58,19 @@ export function createRead(config: ReadConfig = {}) {
     inputSchema: z.object({
       file_path: z
         .string()
-        .describe('The path to the file to read (absolute, relative, or ~/...)'),
+        .describe('The absolute path to the file to read'),
       offset: z
         .number()
+        .int()
+        .nonnegative()
         .optional()
-        .describe('0-indexed line number to start reading from (default: 0)'),
+        .describe('The line number to start reading from (default: 0)'),
       limit: z
         .number()
+        .int()
+        .positive()
         .optional()
-        .describe('Maximum number of lines to return (default: 2000)'),
+        .describe('The number of lines to read (default: 2000)'),
     }),
     execute: async ({ file_path, offset, limit }) => {
       try {

@@ -42,13 +42,13 @@ export function createEdit(config: BaseToolConfig = {}) {
       'Supports curly-quote fallback matching. ' +
       'When replace_all is false (default), old_string must appear exactly once.',
     inputSchema: z.object({
-      file_path: z.string().describe('Path to the file to edit'),
+      file_path: z.string().describe('The absolute path to the file to modify'),
       old_string: z.string().describe('The exact string to find and replace'),
       new_string: z.string().describe('The replacement string'),
       replace_all: z
         .boolean()
-        .optional()
         .default(false)
+        .optional()
         .describe('Replace all occurrences (default: false)'),
     }),
     execute: async ({ file_path, old_string, new_string, replace_all }) => {

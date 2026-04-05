@@ -1,0 +1,54 @@
+import { tool } from 'ai';
+import { z } from 'zod';
+import { join } from 'node:path';
+import type { BaseToolConfig } from '../shared/types.js';
+import { generateId, loadTasks, saveTasks, formatTask, type Task } from '../shared/task-store.js';
+
+export interface TaskCreateConfig extends BaseToolConfig {
+  /** Path to the tasks JSON file. Defaults to `<cwd>/.agentool/tasks.json`. */
+  tasksFile?: string;
+}
+
+export function createTaskCreate(config: TaskCreateConfig = {}) {
+  const cwd = config.cwd ?? process.cwd();
+  const tasksFile = config.tasksFile ?? join(cwd, '.agentool', 'tasks.json');
+
+  return tool({
+    description:
+      'Create a new task to track work. Each task gets a unique ID, ' +
+      'starts with "pending" status, and can include optional metadata.',
+    inputSchema: z.object({
+      subject: z.string().describe('A brief title for the task'),
+      description: z.string().describe('What needs to be done'),
+      metadata: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe('Arbitrary metadata to attach to the task'),
+    }),
+    execute: async ({ subject, description, metadata }) => {
+      try {
+        const tasks = await loadTasks(tasksFile);
+        const now = new Date().toISOString();
+        const entry: Task = {
+          id: generateId(),
+          subject,
+          description,
+          status: 'pending',
+          blocks: [],
+          blockedBy: [],
+          metadata,
+          createdAt: now,
+          updatedAt: now,
+        };
+        tasks.push(entry);
+        await saveTasks(tasksFile, tasks);
+        return `Created task ${entry.id}.\n${formatTask(entry)}`;
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return `Error [task-create]: ${msg}`;
+      }
+    },
+  });
+}
+
+export const taskCreate = createTaskCreate();

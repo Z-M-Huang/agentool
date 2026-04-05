@@ -1,223 +1,228 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createTask, task } from '../../src/task/index.js';
+import { createTaskCreate, taskCreate } from '../../src/task-create/index.js';
+import { createTaskGet, taskGet } from '../../src/task-get/index.js';
+import { createTaskUpdate, taskUpdate } from '../../src/task-update/index.js';
+import { createTaskList, taskList } from '../../src/task-list/index.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const toolOpts = { toolCallId: 'test', messages: [] as never[] };
 
-describe('task tool', () => {
+describe('task tools', () => {
   let dir: string;
   let tasksFile: string;
-  let taskTool: ReturnType<typeof createTask>;
+  let create: ReturnType<typeof createTaskCreate>;
+  let get: ReturnType<typeof createTaskGet>;
+  let update: ReturnType<typeof createTaskUpdate>;
+  let list: ReturnType<typeof createTaskList>;
 
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'task-test-'));
     tasksFile = join(dir, 'tasks.json');
-    taskTool = createTask({ tasksFile });
+    create = createTaskCreate({ tasksFile });
+    get = createTaskGet({ tasksFile });
+    update = createTaskUpdate({ tasksFile });
+    list = createTaskList({ tasksFile });
   });
 
   afterEach(async () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  describe('default export', () => {
-    it('exists and has an execute function', () => {
-      expect(task).toBeDefined();
-      expect(typeof task.execute).toBe('function');
+  describe('default exports', () => {
+    it('taskCreate exists and has execute', () => {
+      expect(taskCreate).toBeDefined();
+      expect(typeof taskCreate.execute).toBe('function');
+    });
+
+    it('taskGet exists and has execute', () => {
+      expect(taskGet).toBeDefined();
+      expect(typeof taskGet.execute).toBe('function');
+    });
+
+    it('taskUpdate exists and has execute', () => {
+      expect(taskUpdate).toBeDefined();
+      expect(typeof taskUpdate.execute).toBe('function');
+    });
+
+    it('taskList exists and has execute', () => {
+      expect(taskList).toBeDefined();
+      expect(typeof taskList.execute).toBe('function');
     });
   });
 
   describe('create + get lifecycle', () => {
     it('creates a task and retrieves it by id', async () => {
-      const createResult = await taskTool.execute(
-        { action: 'create', subject: 'Test task', description: 'A test task' },
+      const createResult = await create.execute(
+        { subject: 'Test task', description: 'A test task' },
         toolOpts,
       );
       expect(createResult).toContain('Created task');
       expect(createResult).toContain('Subject: Test task');
       expect(createResult).toContain('Status: pending');
 
-      // Extract the id from the output
       const idMatch = createResult.match(/Created task (\w+)/);
       expect(idMatch).not.toBeNull();
       const id = idMatch![1];
 
-      const getResult = await taskTool.execute(
-        { action: 'get', id },
-        toolOpts,
-      );
+      const getResult = await get.execute({ taskId: id }, toolOpts);
       expect(getResult).toContain(`ID: ${id}`);
       expect(getResult).toContain('Subject: Test task');
       expect(getResult).toContain('Description: A test task');
-      expect(getResult).toContain('Created:');
-      expect(getResult).toContain('Updated:');
+    });
+  });
+
+  describe('create with metadata', () => {
+    it('includes metadata in created task', async () => {
+      const result = await create.execute(
+        { subject: 'Meta task', description: 'Has metadata', metadata: { priority: 'high' } },
+        toolOpts,
+      );
+      expect(result).toContain('Created task');
+      expect(result).toContain('Metadata:');
+      expect(result).toContain('high');
     });
   });
 
   describe('list tasks', () => {
-    it('lists all tasks', async () => {
-      await taskTool.execute(
-        { action: 'create', subject: 'Task A', description: 'First' },
+    it('lists all non-deleted tasks', async () => {
+      await create.execute(
+        { subject: 'Task A', description: 'First' },
         toolOpts,
       );
-      await taskTool.execute(
-        { action: 'create', subject: 'Task B', description: 'Second' },
+      await create.execute(
+        { subject: 'Task B', description: 'Second' },
         toolOpts,
       );
 
-      const result = await taskTool.execute(
-        { action: 'list' },
-        toolOpts,
-      );
+      const result = await list.execute({}, toolOpts);
       expect(result).toContain('Task A');
       expect(result).toContain('Task B');
     });
 
     it('returns message when no tasks exist', async () => {
-      const result = await taskTool.execute(
-        { action: 'list' },
+      const result = await list.execute({}, toolOpts);
+      expect(result).toContain('No tasks found');
+    });
+
+    it('excludes deleted tasks from list', async () => {
+      const createResult = await create.execute(
+        { subject: 'Delete me', description: 'Will be deleted' },
         toolOpts,
       );
+      const id = createResult.match(/Created task (\w+)/)![1];
+      await update.execute({ taskId: id, status: 'deleted' }, toolOpts);
+
+      const result = await list.execute({}, toolOpts);
       expect(result).toContain('No tasks found');
     });
   });
 
-  describe('update status', () => {
+  describe('update', () => {
     it('updates task status', async () => {
-      const createResult = await taskTool.execute(
-        { action: 'create', subject: 'Update me', description: 'Will be updated' },
+      const createResult = await create.execute(
+        { subject: 'Update me', description: 'Will be updated' },
         toolOpts,
       );
-      const idMatch = createResult.match(/Created task (\w+)/);
-      const id = idMatch![1];
+      const id = createResult.match(/Created task (\w+)/)![1];
 
-      const updateResult = await taskTool.execute(
-        { action: 'update', id, status: 'in_progress' },
+      const updateResult = await update.execute(
+        { taskId: id, status: 'in_progress' },
         toolOpts,
       );
       expect(updateResult).toContain('Updated task');
       expect(updateResult).toContain('Status: in_progress');
     });
-  });
 
-  describe('delete task', () => {
-    it('deletes a task by id', async () => {
-      const createResult = await taskTool.execute(
-        { action: 'create', subject: 'Delete me', description: 'Will be deleted' },
+    it('updates owner and activeForm', async () => {
+      const createResult = await create.execute(
+        { subject: 'Owned task', description: 'Has owner' },
         toolOpts,
       );
-      const idMatch = createResult.match(/Created task (\w+)/);
-      const id = idMatch![1];
+      const id = createResult.match(/Created task (\w+)/)![1];
 
-      const deleteResult = await taskTool.execute(
-        { action: 'delete', id },
+      const result = await update.execute(
+        { taskId: id, owner: 'agent-1', activeForm: 'Working on it' },
         toolOpts,
       );
-      expect(deleteResult).toContain(`Deleted task "${id}"`);
-
-      const getResult = await taskTool.execute(
-        { action: 'get', id },
-        toolOpts,
-      );
-      expect(getResult).toContain('not found');
-    });
-  });
-
-  describe('get nonexistent task', () => {
-    it('returns error for nonexistent id', async () => {
-      const result = await taskTool.execute(
-        { action: 'get', id: 'nonexistent' },
-        toolOpts,
-      );
-      expect(result).toContain('Error [task]');
-      expect(result).toContain('not found');
-    });
-  });
-
-  describe('create with custom status', () => {
-    it('creates task with specified status', async () => {
-      const result = await taskTool.execute(
-        {
-          action: 'create',
-          subject: 'Urgent',
-          description: 'Already started',
-          status: 'in_progress',
-        },
-        toolOpts,
-      );
-      expect(result).toContain('Status: in_progress');
-    });
-  });
-
-  describe('create validation', () => {
-    it('requires subject for create', async () => {
-      const result = await taskTool.execute(
-        { action: 'create', description: 'No subject' },
-        toolOpts,
-      );
-      expect(result).toContain('Error [task]');
-      expect(result).toContain('Subject is required');
+      expect(result).toContain('Owner: agent-1');
+      expect(result).toContain('Active: Working on it');
     });
 
-    it('requires description for create', async () => {
-      const result = await taskTool.execute(
-        { action: 'create', subject: 'No desc' },
+    it('merges metadata (null deletes key)', async () => {
+      const createResult = await create.execute(
+        { subject: 'Meta task', description: 'Test', metadata: { a: 1, b: 2 } },
         toolOpts,
       );
-      expect(result).toContain('Error [task]');
-      expect(result).toContain('Description is required');
-    });
-  });
+      const id = createResult.match(/Created task (\w+)/)![1];
 
-  describe('update validation', () => {
-    it('requires id for update', async () => {
-      const result = await taskTool.execute(
-        { action: 'update', subject: 'New subject' },
+      // Merge: add c, delete a
+      await update.execute(
+        { taskId: id, metadata: { c: 3, a: null } },
         toolOpts,
       );
-      expect(result).toContain('Error [task]');
-      expect(result).toContain('ID is required');
-    });
 
-    it('returns error when updating nonexistent task', async () => {
-      const result = await taskTool.execute(
-        { action: 'update', id: 'nonexistent', subject: 'Updated' },
-        toolOpts,
-      );
-      expect(result).toContain('Error [task]');
-      expect(result).toContain('not found');
-    });
-  });
-
-  describe('delete validation', () => {
-    it('requires id for delete', async () => {
-      const result = await taskTool.execute(
-        { action: 'delete' },
-        toolOpts,
-      );
-      expect(result).toContain('Error [task]');
-      expect(result).toContain('ID is required');
+      const getResult = await get.execute({ taskId: id }, toolOpts);
+      expect(getResult).not.toContain('"a"');
+      expect(getResult).toContain('"b"');
+      expect(getResult).toContain('"c"');
     });
 
-    it('returns error when deleting nonexistent task', async () => {
-      const result = await taskTool.execute(
-        { action: 'delete', id: 'nonexistent' },
+    it('appends to blocks and blockedBy without duplicates', async () => {
+      const createResult = await create.execute(
+        { subject: 'Blocked task', description: 'Test' },
         toolOpts,
       );
-      expect(result).toContain('Error [task]');
+      const id = createResult.match(/Created task (\w+)/)![1];
+
+      await update.execute(
+        { taskId: id, addBlocks: ['t1', 't2'], addBlockedBy: ['t3'] },
+        toolOpts,
+      );
+      // Add duplicates — should not duplicate
+      const result = await update.execute(
+        { taskId: id, addBlocks: ['t1', 't4'], addBlockedBy: ['t3'] },
+        toolOpts,
+      );
+      expect(result).toContain('Blocks: t1, t2, t4');
+      expect(result).toContain('Blocked by: t3');
+    });
+
+    it('returns error for nonexistent task', async () => {
+      const result = await update.execute(
+        { taskId: 'nonexistent', subject: 'Updated' },
+        toolOpts,
+      );
+      expect(result).toContain('Error [task-update]');
       expect(result).toContain('not found');
     });
   });
 
   describe('get validation', () => {
-    it('requires id for get', async () => {
-      const result = await taskTool.execute(
-        { action: 'get' },
+    it('returns error for nonexistent id', async () => {
+      const result = await get.execute(
+        { taskId: 'nonexistent' },
         toolOpts,
       );
-      expect(result).toContain('Error [task]');
-      expect(result).toContain('ID is required');
+      expect(result).toContain('Error [task-get]');
+      expect(result).toContain('not found');
+    });
+  });
+
+  describe('status deleted', () => {
+    it('supports deleted status', async () => {
+      const createResult = await create.execute(
+        { subject: 'Delete me', description: 'Will be deleted' },
+        toolOpts,
+      );
+      const id = createResult.match(/Created task (\w+)/)![1];
+
+      const result = await update.execute(
+        { taskId: id, status: 'deleted' },
+        toolOpts,
+      );
+      expect(result).toContain('Status: deleted');
     });
   });
 });

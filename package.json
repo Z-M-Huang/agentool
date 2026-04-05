@@ -1,8 +1,8 @@
 {
   "name": "agentool",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
-  "description": "16 AI agent tools as standalone Vercel AI SDK modules",
+  "description": "22 AI agent tools as standalone Vercel AI SDK modules",
   "author": "Z-M-Huang",
   "license": "Apache-2.0",
   "repository": {
@@ -89,10 +89,35 @@
       "import": "./dist/diff/index.js",
       "require": "./dist/diff/index.cjs"
     },
-    "./task": {
-      "types": "./dist/task/index.d.ts",
-      "import": "./dist/task/index.js",
-      "require": "./dist/task/index.cjs"
+    "./task-create": {
+      "types": "./dist/task-create/index.d.ts",
+      "import": "./dist/task-create/index.js",
+      "require": "./dist/task-create/index.cjs"
+    },
+    "./task-get": {
+      "types": "./dist/task-get/index.d.ts",
+      "import": "./dist/task-get/index.js",
+      "require": "./dist/task-get/index.cjs"
+    },
+    "./task-update": {
+      "types": "./dist/task-update/index.d.ts",
+      "import": "./dist/task-update/index.js",
+      "require": "./dist/task-update/index.cjs"
+    },
+    "./task-list": {
+      "types": "./dist/task-list/index.d.ts",
+      "import": "./dist/task-list/index.js",
+      "require": "./dist/task-list/index.cjs"
+    },
+    "./web-search": {
+      "types": "./dist/web-search/index.d.ts",
+      "import": "./dist/web-search/index.js",
+      "require": "./dist/web-search/index.cjs"
+    },
+    "./tool-search": {
+      "types": "./dist/tool-search/index.d.ts",
+      "import": "./dist/tool-search/index.js",
+      "require": "./dist/tool-search/index.cjs"
     },
     "./lsp": {
       "types": "./dist/lsp/index.d.ts",

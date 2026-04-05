@@ -36,7 +36,7 @@ export function createWrite(config: BaseToolConfig = {}) {
       'If the file exists it is overwritten. ' +
       'Use this to create new files or replace existing file contents.',
     inputSchema: z.object({
-      file_path: z.string().describe('Path to the file to write'),
+      file_path: z.string().describe('The absolute path to the file to write (must be absolute, not relative)'),
       content: z.string().describe('Text content to write to the file'),
     }),
     execute: async ({ file_path, content }) => {

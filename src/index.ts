@@ -29,8 +29,23 @@ export type { MultiEditConfig } from './multi-edit/index.js';
 export { createDiff, diff } from './diff/index.js';
 export type { DiffConfig } from './diff/index.js';
 
-export { createTask, task } from './task/index.js';
-export type { TaskConfig } from './task/index.js';
+export { createTaskCreate, taskCreate } from './task-create/index.js';
+export type { TaskCreateConfig } from './task-create/index.js';
+
+export { createTaskGet, taskGet } from './task-get/index.js';
+export type { TaskGetConfig } from './task-get/index.js';
+
+export { createTaskUpdate, taskUpdate } from './task-update/index.js';
+export type { TaskUpdateConfig } from './task-update/index.js';
+
+export { createTaskList, taskList } from './task-list/index.js';
+export type { TaskListConfig } from './task-list/index.js';
+
+export { createWebSearch, webSearch } from './web-search/index.js';
+export type { WebSearchConfig } from './web-search/index.js';
+
+export { createToolSearch, toolSearch } from './tool-search/index.js';
+export type { ToolSearchConfig } from './tool-search/index.js';
 
 export { createLsp, lsp } from './lsp/index.js';
 export type { LspConfig } from './lsp/index.js';

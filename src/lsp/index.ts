@@ -39,7 +39,7 @@ function parseJsonRpcResponses(buffer: Buffer): object[] {
 
 interface LspRequest {
   operation: string; filePath: string; line?: number;
-  character?: number; query?: string; cwd: string;
+  character?: number; cwd: string;
 }
 
 function operationToMethod(operation: string): string {
@@ -50,14 +50,15 @@ function operationToMethod(operation: string): string {
     documentSymbol: 'textDocument/documentSymbol',
     workspaceSymbol: 'workspace/symbol',
     goToImplementation: 'textDocument/implementation',
+    prepareCallHierarchy: 'textDocument/prepareCallHierarchy',
     incomingCalls: 'textDocument/prepareCallHierarchy',
     outgoingCalls: 'textDocument/prepareCallHierarchy',
   };
   return map[operation] ?? operation;
 }
 
-function buildRequestParams(op: string, uri: string, line: number, char: number, query?: string): object {
-  if (op === 'workspaceSymbol') return { query: query ?? '' };
+function buildRequestParams(op: string, uri: string, line: number, char: number): object {
+  if (op === 'workspaceSymbol') return { query: '' };
   const td = { uri };
   if (op === 'documentSymbol') return { textDocument: td };
   const pos = { line, character: char };
@@ -140,7 +141,7 @@ export async function executeLspOperation(
     });
 
     const method = operationToMethod(params.operation);
-    const reqParams = buildRequestParams(params.operation, uri, params.line ?? 0, params.character ?? 0, params.query);
+    const reqParams = buildRequestParams(params.operation, uri, params.line ?? 0, params.character ?? 0);
     let response = await rpc(sendRequest(proc, method, reqParams));
     if (response.error) return `Error [lsp]: Server error: ${response.error.message} (code ${response.error.code})`;
 
@@ -161,7 +162,8 @@ export async function executeLspOperation(
 
 const LSP_OPERATIONS = [
   'goToDefinition', 'findReferences', 'hover', 'documentSymbol',
-  'workspaceSymbol', 'goToImplementation', 'incomingCalls', 'outgoingCalls',
+  'workspaceSymbol', 'goToImplementation', 'prepareCallHierarchy',
+  'incomingCalls', 'outgoingCalls',
 ] as const;
 
 /** Creates an LSP tool that performs language server operations. */
@@ -171,17 +173,16 @@ export function createLsp(config: LspConfig = {}) {
   return tool({
     description:
       'Perform language server operations like go-to-definition, find-references, ' +
-      'and hover. Requires LSP server configuration. Supports 8 operations: ' +
+      'and hover. Requires LSP server configuration. Supports 9 operations: ' +
       'goToDefinition, findReferences, hover, documentSymbol, workspaceSymbol, ' +
-      'goToImplementation, incomingCalls, outgoingCalls.',
+      'goToImplementation, prepareCallHierarchy, incomingCalls, outgoingCalls.',
     inputSchema: z.object({
       operation: z.enum(LSP_OPERATIONS).describe('The LSP operation to perform'),
       filePath: z.string().describe('Path to the file'),
-      line: z.number().optional().describe('Line number (0-indexed)'),
-      character: z.number().optional().describe('Character offset (0-indexed)'),
-      query: z.string().optional().describe('Search query for workspaceSymbol'),
+      line: z.number().int().positive().describe('The line number (1-based, as shown in editors)'),
+      character: z.number().int().positive().describe('The character offset (1-based, as shown in editors)'),
     }),
-    execute: async ({ operation, filePath, line, character, query }) => {
+    execute: async ({ operation, filePath, line, character }) => {
       if (!config.servers || Object.keys(config.servers).length === 0) {
         return (
           'Error [lsp]: No LSP servers configured. Provide server configuration ' +
@@ -198,9 +199,10 @@ export function createLsp(config: LspConfig = {}) {
       }
 
       try {
+        // Convert 1-based (user-facing) to 0-based (LSP protocol) at the tool boundary
         return await executeLspOperation(
           serverConfig,
-          { operation, filePath, line, character, query, cwd: config.cwd ?? process.cwd() },
+          { operation, filePath, line: line - 1, character: character - 1, cwd: config.cwd ?? process.cwd() },
           timeoutMs,
         );
       } catch (error) {

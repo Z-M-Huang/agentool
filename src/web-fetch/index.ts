@@ -45,13 +45,7 @@ export function createWebFetch(config: WebFetchConfig = {}) {
       'content is returned as-is. Content is truncated at 100,000 ' +
       'characters to manage context size.',
     inputSchema: z.object({
-      url: z.string().describe('The URL to fetch'),
-      prompt: z
-        .string()
-        .optional()
-        .describe(
-          'Optional context about what to extract from the page',
-        ),
+      url: z.string().url().describe('The URL to fetch'),
     }),
     execute: async ({ url }) => {
       try {

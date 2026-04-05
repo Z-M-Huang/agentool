@@ -2,7 +2,7 @@
 
 # agentool
 
-**16 AI agent tools as standalone [Vercel AI SDK](https://sdk.vercel.ai/) modules.**
+**22 AI agent tools as standalone [Vercel AI SDK](https://sdk.vercel.ai/) modules.**
 
   <p>
   <a href="https://www.npmjs.com/package/agentool"><img src="https://img.shields.io/npm/v/agentool?style=flat-square&color=cb3837&logo=npm" alt="npm version" /></a>
@@ -27,13 +27,13 @@ File operations, shell execution, code search, web fetching, and more -- everyth
 
 ## Features
 
-- **16 production-ready tools** -- bash, grep, glob, read, edit, write, web-fetch, memory, multi-edit, diff, task, lsp, http-request, context-compaction, ask-user, sleep
+- **22 production-ready tools** -- bash, grep, glob, read, edit, write, web-fetch, web-search, tool-search, memory, multi-edit, diff, task-create, task-get, task-update, task-list, lsp, http-request, context-compaction, ask-user, sleep
 - **Vercel AI SDK compatible** -- works with `generateText()`, `streamText()`, and any AI SDK provider (OpenAI, Anthropic, Google, etc.)
 - **Factory + default pattern** -- `createBash({ cwd: '/my/project' })` for custom config, or just use `bash` with zero config
 - **Dual ESM/CJS** -- works everywhere with proper `exports` map
 - **TypeScript-first** -- full type declarations, strict mode, no `any`
 - **Never throws** -- every `execute()` returns a descriptive error string instead of throwing
-- **Tree-shakeable** -- 17 subpath exports, only import what you need
+- **Tree-shakeable** -- 22 subpath exports, only import what you need
 
 ## Installation
 
@@ -326,7 +326,58 @@ const result = await webFetch.execute(
 // Returns markdown content (HTML converted via Turndown, truncated at 100K chars)
 ```
 
-**Parameters:** `url` (string), `prompt?` (string)
+**Parameters:** `url` (string, must be valid URL)
+
+---
+
+### web-search
+
+Search the web with a callback-based implementation (bring your own search provider).
+
+```typescript
+import { createWebSearch } from 'agentool/web-search';
+
+const webSearch = createWebSearch({
+  onSearch: async (query, { allowed_domains, blocked_domains }) => {
+    // Use Tavily, SerpAPI, Google, or any search provider
+    const results = await mySearchProvider.search(query, { allowed_domains, blocked_domains });
+    return results.map(r => `${r.title}: ${r.url}\n${r.snippet}`).join('\n\n');
+  },
+});
+
+const result = await webSearch.execute(
+  { query: 'TypeScript best practices 2024', allowed_domains: ['typescript-eslint.io'] },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `query` (string, min 2 chars), `allowed_domains?` (string[]), `blocked_domains?` (string[])
+
+---
+
+### tool-search
+
+Search through a registry of available tools by name or keyword.
+
+```typescript
+import { createToolSearch } from 'agentool/tool-search';
+
+const toolSearch = createToolSearch({
+  tools: {
+    bash: { description: 'Execute shell commands' },
+    grep: { description: 'Search file contents with regex' },
+    read: { description: 'Read file contents' },
+  },
+});
+
+const result = await toolSearch.execute(
+  { query: 'file', max_results: 3 },
+  { toolCallId: 'id', messages: [] },
+);
+// Returns matching tools sorted by relevance
+```
+
+**Parameters:** `query` (string), `max_results?` (number, default 5)
 
 ---
 
@@ -390,33 +441,78 @@ await memory.execute(
 
 ---
 
-### task
+### task-create
 
-JSON file-based task tracker for agent workflows.
+Create a new task with subject, description, and optional metadata.
 
 ```typescript
-import { task } from 'agentool/task';
+import { taskCreate } from 'agentool/task-create';
 
-// Create
-const created = await task.execute(
-  { action: 'create', subject: 'Fix login bug', description: 'Auth fails on refresh' },
-  { toolCallId: 'id', messages: [] },
-);
-
-// List all
-const list = await task.execute(
-  { action: 'list' },
-  { toolCallId: 'id', messages: [] },
-);
-
-// Update status
-await task.execute(
-  { action: 'update', id: 'abc123', status: 'completed' },
+const result = await taskCreate.execute(
+  { subject: 'Fix login bug', description: 'Auth fails on refresh', metadata: { priority: 'high' } },
   { toolCallId: 'id', messages: [] },
 );
 ```
 
-**Parameters:** `action` (`'create'` | `'get'` | `'update'` | `'list'` | `'delete'`), `id?` (string), `subject?` (string), `description?` (string), `status?` (`'pending'` | `'in_progress'` | `'completed'`)
+**Parameters:** `subject` (string), `description` (string), `metadata?` (Record<string, unknown>)
+
+---
+
+### task-get
+
+Retrieve a task by ID to see full details.
+
+```typescript
+import { taskGet } from 'agentool/task-get';
+
+const result = await taskGet.execute(
+  { taskId: 'abc123' },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `taskId` (string)
+
+---
+
+### task-update
+
+Update a task's status, owner, metadata, and dependency relationships.
+
+```typescript
+import { taskUpdate } from 'agentool/task-update';
+
+// Update status and owner
+await taskUpdate.execute(
+  { taskId: 'abc123', status: 'in_progress', owner: 'agent-1' },
+  { toolCallId: 'id', messages: [] },
+);
+
+// Add dependencies and merge metadata (null deletes a key)
+await taskUpdate.execute(
+  { taskId: 'abc123', addBlockedBy: ['def456'], metadata: { priority: null, notes: 'reviewed' } },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `taskId` (string), `subject?` (string), `description?` (string), `status?` (`'pending'` | `'in_progress'` | `'completed'` | `'deleted'`), `owner?` (string), `activeForm?` (string), `addBlocks?` (string[]), `addBlockedBy?` (string[]), `metadata?` (Record<string, unknown>)
+
+---
+
+### task-list
+
+List all non-deleted tasks with status and dependencies.
+
+```typescript
+import { taskList } from 'agentool/task-list';
+
+const result = await taskList.execute(
+  {},
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** none
 
 ---
 
@@ -440,7 +536,7 @@ const result = await lsp.execute(
 );
 ```
 
-**Parameters:** `operation` (`'goToDefinition'` | `'findReferences'` | `'hover'` | `'documentSymbol'` | `'workspaceSymbol'` | `'goToImplementation'` | `'incomingCalls'` | `'outgoingCalls'`), `filePath` (string), `line?` (number), `character?` (number), `query?` (string)
+**Parameters:** `operation` (`'goToDefinition'` | `'findReferences'` | `'hover'` | `'documentSymbol'` | `'workspaceSymbol'` | `'goToImplementation'` | `'prepareCallHierarchy'` | `'incomingCalls'` | `'outgoingCalls'`), `filePath` (string), `line` (number, 1-based), `character` (number, 1-based)
 
 ---
 
@@ -552,7 +648,12 @@ Tools that support timeouts extend `TimeoutConfig`:
 | `bash` | `shell?: string` -- shell binary path |
 | `read` | `maxLines?: number` -- max lines to return (default: 2000) |
 | `memory` | `memoryDir?: string` -- storage directory |
-| `task` | `tasksFile?: string` -- JSON file path |
+| `task-create` | `tasksFile?: string` -- JSON file path |
+| `task-get` | `tasksFile?: string` -- JSON file path |
+| `task-update` | `tasksFile?: string` -- JSON file path |
+| `task-list` | `tasksFile?: string` -- JSON file path |
+| `web-search` | `onSearch?: (query, opts) => Promise<string>` -- search callback |
+| `tool-search` | `tools?: Record<string, { description }>` -- tool registry |
 | `lsp` | `servers?: Record<string, LspServerConfig>` -- LSP servers by file extension |
 | `http-request` | `defaultHeaders?: Record<string, string>` -- headers merged into every request |
 | `web-fetch` | `maxContentLength?: number`, `userAgent?: string` |
@@ -587,11 +688,16 @@ import {
   grep, createGrep,
   glob, createGlob,
   webFetch, createWebFetch,
+  webSearch, createWebSearch,
+  toolSearch, createToolSearch,
   httpRequest, createHttpRequest,
   memory, createMemory,
   multiEdit, createMultiEdit,
   diff, createDiff,
-  task, createTask,
+  taskCreate, createTaskCreate,
+  taskGet, createTaskGet,
+  taskUpdate, createTaskUpdate,
+  taskList, createTaskList,
   lsp, createLsp,
   contextCompaction, createContextCompaction,
   askUser, createAskUser,
@@ -613,7 +719,12 @@ import { httpRequest } from 'agentool/http-request';
 import { memory } from 'agentool/memory';
 import { multiEdit } from 'agentool/multi-edit';
 import { diff } from 'agentool/diff';
-import { task } from 'agentool/task';
+import { taskCreate } from 'agentool/task-create';
+import { taskGet } from 'agentool/task-get';
+import { taskUpdate } from 'agentool/task-update';
+import { taskList } from 'agentool/task-list';
+import { webSearch } from 'agentool/web-search';
+import { toolSearch } from 'agentool/tool-search';
 import { lsp } from 'agentool/lsp';
 import { contextCompaction } from 'agentool/context-compaction';
 import { askUser } from 'agentool/ask-user';

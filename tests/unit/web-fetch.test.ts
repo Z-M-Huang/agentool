@@ -144,14 +144,13 @@ describe('createWebFetch', () => {
     expect(result).toContain('Failed to fetch');
   });
 
-  it('accepts optional prompt parameter without error', async () => {
+  it('rejects invalid URL with validation error', async () => {
     const tool = createWebFetch();
-    const result = await tool.execute(
-      { url: `${baseUrl}/plain`, prompt: 'extract keywords' },
-      { toolCallId: 't6', messages: [] },
-    );
-    expect(result).toContain('Status: 200');
-    expect(result).toContain('plain text content');
+    // z.string().url() will reject non-URL strings during schema validation
+    // but since AI SDK parses schema, we test via the tool factory's schema
+    const schema = tool.inputSchema;
+    const result = schema.safeParse({ url: 'not-a-url' });
+    expect(result.success).toBe(false);
   });
 
   it('reports truncation for very large content', async () => {

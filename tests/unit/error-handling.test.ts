@@ -9,7 +9,7 @@ import { webFetch } from '../../src/web-fetch/index.js';
 import { memory } from '../../src/memory/index.js';
 import { multiEdit } from '../../src/multi-edit/index.js';
 import { diff } from '../../src/diff/index.js';
-import { task } from '../../src/task/index.js';
+import { taskGet } from '../../src/task-get/index.js';
 import { lsp } from '../../src/lsp/index.js';
 import { httpRequest } from '../../src/http-request/index.js';
 import { contextCompaction } from '../../src/context-compaction/index.js';
@@ -92,13 +92,13 @@ describe('error handling: execute never throws', () => {
     expect(result).toContain('not found');
   });
 
-  it('task: get nonexistent id returns error string', async () => {
-    const result = await task.execute(
-      { action: 'get', id: 'nonexistent_id_xyz_123' },
+  it('task-get: nonexistent id returns error string', async () => {
+    const result = await taskGet.execute(
+      { taskId: 'nonexistent_id_xyz_123' },
       ctx,
     );
     expect(typeof result).toBe('string');
-    expect(result).toContain('Error [task]');
+    expect(result).toContain('Error [task-get]');
     expect(result).toContain('not found');
   });
 
@@ -183,7 +183,7 @@ describe('error handling: execute never throws', () => {
 
   it('lsp: no servers configured returns error string', async () => {
     const result = await lsp.execute(
-      { operation: 'hover', filePath: 'test.ts', line: 0, character: 0 },
+      { operation: 'hover', filePath: 'test.ts', line: 1, character: 1 },
       ctx,
     );
     expect(typeof result).toBe('string');

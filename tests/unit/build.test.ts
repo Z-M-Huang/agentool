@@ -13,8 +13,9 @@ describe('build verification', () => {
 
   const tools = [
     'bash', 'grep', 'glob', 'read', 'edit', 'write', 'web-fetch',
-    'memory', 'multi-edit', 'diff', 'task', 'lsp', 'http-request',
-    'context-compaction', 'ask-user', 'sleep'
+    'memory', 'multi-edit', 'diff', 'task-create', 'task-get',
+    'task-update', 'task-list', 'web-search', 'tool-search',
+    'lsp', 'http-request', 'context-compaction', 'ask-user', 'sleep'
   ];
 
   it('root entry point has ESM, CJS, and DTS', () => {
@@ -31,9 +32,9 @@ describe('build verification', () => {
     });
   }
 
-  it('17 entry points total', () => {
+  it('22 entry points total', () => {
     const dirs = tools.length + 1; // tools + root
-    expect(dirs).toBe(17);
+    expect(dirs).toBe(22);
   });
 
   it('ESM import resolves for root', async () => {
