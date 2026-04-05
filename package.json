@@ -2,7 +2,34 @@
   "name": "agentool",
   "version": "1.0.0",
   "type": "module",
-  "description": "A comprehensive toolkit of AI agent tools",
+  "description": "16 AI agent tools as standalone Vercel AI SDK modules",
+  "author": "Z-M-Huang",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Z-M-Huang/agentool.git"
+  },
+  "homepage": "https://github.com/Z-M-Huang/agentool#readme",
+  "bugs": {
+    "url": "https://github.com/Z-M-Huang/agentool/issues"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "tools",
+    "vercel-ai-sdk",
+    "llm",
+    "bash",
+    "grep",
+    "glob",
+    "file-operations",
+    "code-search",
+    "web-fetch",
+    "typescript",
+    "claude",
+    "openai",
+    "anthropic"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
