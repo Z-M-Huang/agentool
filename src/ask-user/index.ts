@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as askUserPrompt } from './prompt.js';
@@ -73,7 +74,7 @@ export function createAskUser(config: AskUserConfig = {}) {
         const response = await config.onQuestion(question, options);
         return response;
       } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [ask-user]: Failed to get user response: ${msg}`;
       }
     },

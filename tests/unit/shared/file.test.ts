@@ -6,6 +6,10 @@ import {
   addLineNumbers,
   writeTextContent,
   readFileInRange,
+  readTextContent,
+  listDirectory,
+  removeFile,
+  getFileStats,
   pathExists,
 } from '../../../src/shared/file.js';
 
@@ -244,5 +248,96 @@ describe('pathExists', () => {
 
   it('returns false for a non-existent path', async () => {
     expect(await pathExists(join(tempDir, 'nope'))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// readTextContent
+// ---------------------------------------------------------------------------
+describe('readTextContent', () => {
+  it('reads a UTF-8 file', async () => {
+    const filePath = join(tempDir, 'read.txt');
+    writeFileSync(filePath, 'hello world', 'utf-8');
+
+    expect(await readTextContent(filePath)).toBe('hello world');
+  });
+
+  it('does NOT strip BOM (unlike readFileInRange)', async () => {
+    const filePath = join(tempDir, 'bom.txt');
+    writeFileSync(filePath, '\uFEFFwith bom', 'utf-8');
+
+    const content = await readTextContent(filePath);
+    expect(content.charCodeAt(0)).toBe(0xfeff);
+  });
+
+  it('does NOT normalize CRLF (unlike readFileInRange)', async () => {
+    const filePath = join(tempDir, 'crlf.txt');
+    writeFileSync(filePath, 'line1\r\nline2', 'utf-8');
+
+    const content = await readTextContent(filePath);
+    expect(content).toContain('\r\n');
+  });
+
+  it('throws for non-existent file', async () => {
+    await expect(readTextContent(join(tempDir, 'nope.txt'))).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listDirectory
+// ---------------------------------------------------------------------------
+describe('listDirectory', () => {
+  it('lists files in a directory', async () => {
+    writeFileSync(join(tempDir, 'a.txt'), '', 'utf-8');
+    writeFileSync(join(tempDir, 'b.txt'), '', 'utf-8');
+
+    const entries = await listDirectory(tempDir);
+    expect(entries.sort()).toEqual(['a.txt', 'b.txt']);
+  });
+
+  it('returns empty array for empty directory', async () => {
+    const emptyDir = join(tempDir, 'empty');
+    mkdirSync(emptyDir);
+
+    expect(await listDirectory(emptyDir)).toEqual([]);
+  });
+
+  it('throws for non-existent directory', async () => {
+    await expect(listDirectory(join(tempDir, 'nope'))).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// removeFile
+// ---------------------------------------------------------------------------
+describe('removeFile', () => {
+  it('deletes a file', async () => {
+    const filePath = join(tempDir, 'to-delete.txt');
+    writeFileSync(filePath, 'gone', 'utf-8');
+
+    await removeFile(filePath);
+    expect(existsSync(filePath)).toBe(false);
+  });
+
+  it('throws for non-existent file', async () => {
+    await expect(removeFile(join(tempDir, 'nope.txt'))).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getFileStats
+// ---------------------------------------------------------------------------
+describe('getFileStats', () => {
+  it('returns stats with mtimeMs', async () => {
+    const filePath = join(tempDir, 'stat.txt');
+    writeFileSync(filePath, 'data', 'utf-8');
+
+    const stats = await getFileStats(filePath);
+    expect(stats.mtimeMs).toBeGreaterThan(0);
+    expect(stats.isFile()).toBe(true);
+  });
+
+  it('throws for non-existent path', async () => {
+    await expect(getFileStats(join(tempDir, 'nope'))).rejects.toThrow();
   });
 });

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath } from '../shared/path.js';
 import { pathExists, writeTextContent } from '../shared/file.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as writePrompt } from './prompt.js';
@@ -51,8 +52,7 @@ export function createWrite(config: WriteConfig = {}) {
         const verb = existed ? 'Updated' : 'Created';
         return `${verb} file: ${absolutePath} (${bytes} bytes)`;
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : String(error);
+        const message = extractErrorMessage(error);
         return `Error [write]: Failed to write file: ${message}`;
       }
     },

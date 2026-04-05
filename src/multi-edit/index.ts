@@ -1,14 +1,15 @@
-import { readFile } from 'node:fs/promises';
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath } from '../shared/path.js';
-import { writeTextContent } from '../shared/file.js';
+import { readTextContent, writeTextContent } from '../shared/file.js';
 import {
   findActualString,
   preserveQuoteStyle,
   applyEditToFile,
+  countOccurrences,
 } from '../shared/edit-helpers.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as multiEditPrompt } from './prompt.js';
@@ -26,20 +27,6 @@ export type MultiEditConfig = BaseToolConfig & {
   /** Override the default tool description. */
   description?: string;
 };
-
-/**
- * Count non-overlapping occurrences of `search` in `text`.
- */
-function countOccurrences(text: string, search: string): number {
-  if (search.length === 0) return 0;
-  let count = 0;
-  let pos = 0;
-  while ((pos = text.indexOf(search, pos)) !== -1) {
-    count++;
-    pos += search.length;
-  }
-  return count;
-}
 
 /**
  * Creates a multi-edit tool that atomically applies multiple string
@@ -98,7 +85,7 @@ export function createMultiEdit(config: MultiEditConfig = {}) {
         }
 
         const resolvedPath = expandPath(file_path, cwd);
-        const originalContent = await readFile(resolvedPath, 'utf-8');
+        const originalContent = await readTextContent(resolvedPath);
 
         let content = originalContent;
 
@@ -141,7 +128,7 @@ export function createMultiEdit(config: MultiEditConfig = {}) {
           `to ${resolvedPath}`
         );
       } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [multi-edit]: ${msg}`;
       }
     },

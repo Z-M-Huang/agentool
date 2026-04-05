@@ -15,6 +15,39 @@ export default tseslint.config(
       "@typescript-eslint/ban-ts-comment": "error",
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": "error",
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "node:fs",
+              message:
+                "Use shared filesystem utilities from src/shared/file.ts.",
+            },
+            {
+              name: "node:fs/promises",
+              message:
+                "Use shared filesystem utilities from src/shared/file.ts.",
+            },
+            {
+              name: "fs",
+              message:
+                "Use shared filesystem utilities from src/shared/file.ts.",
+            },
+            {
+              name: "fs/promises",
+              message:
+                "Use shared filesystem utilities from src/shared/file.ts.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/shared/file.ts"],
+    rules: {
+      "no-restricted-imports": "off",
     },
   },
   {

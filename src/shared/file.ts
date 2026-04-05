@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, stat, unlink, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 /** Threshold in bytes: files below this use the fast (in-memory) path. */
@@ -88,6 +88,50 @@ export async function pathExists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Read a file as a UTF-8 string without any transformation.
+ *
+ * Unlike {@link readFileInRange}, this does NOT strip BOM or normalize
+ * line endings. Use this when you need the raw file content.
+ *
+ * @param filePath - Absolute path to the file.
+ * @returns The raw UTF-8 content.
+ */
+export async function readTextContent(filePath: string): Promise<string> {
+  return readFile(filePath, 'utf-8');
+}
+
+/**
+ * List the entries (file and directory names) in a directory.
+ *
+ * @param dirPath - Absolute path to the directory.
+ * @returns Array of entry names (not full paths).
+ */
+export async function listDirectory(dirPath: string): Promise<string[]> {
+  return readdir(dirPath);
+}
+
+/**
+ * Delete a file from disk.
+ *
+ * @param filePath - Absolute path to the file to remove.
+ */
+export async function removeFile(filePath: string): Promise<void> {
+  await unlink(filePath);
+}
+
+/**
+ * Get the `fs.Stats` for a path.
+ *
+ * @param filePath - Absolute path to stat.
+ * @returns The `Stats` object.
+ */
+export async function getFileStats(
+  filePath: string,
+): Promise<import('node:fs').Stats> {
+  return stat(filePath);
 }
 
 /**

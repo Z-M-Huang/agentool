@@ -1,8 +1,9 @@
-import { stat } from 'node:fs/promises';
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath, toRelativePath } from '../shared/path.js';
+import { getFileStats } from '../shared/file.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { executeRipgrep } from '../shared/ripgrep.js';
 import { getPrompt } from './prompt.js';
 
@@ -162,7 +163,7 @@ export function createGrep(config: GrepConfig = {}) {
         }
 
         // --- files_with_matches mode (default) ---
-        const stats = await Promise.allSettled(results.map((f) => stat(f)));
+        const stats = await Promise.allSettled(results.map((f) => getFileStats(f)));
         const sorted = results
           .map((fp, i) => {
             const r = stats[i]!;
@@ -179,7 +180,7 @@ export function createGrep(config: GrepConfig = {}) {
         const relative = items.map((f) => toRelativePath(f, cwd));
         return relative.join('\n') + truncationSuffix(appliedLimit, offset);
       } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [grep]: Failed to search: ${msg}`;
       }
     },

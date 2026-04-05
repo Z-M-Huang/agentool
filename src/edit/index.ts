@@ -1,8 +1,9 @@
-import { readFile, writeFile } from 'node:fs/promises';
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath } from '../shared/path.js';
+import { readTextContent, writeTextContent } from '../shared/file.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as editPrompt } from './prompt.js';
@@ -15,6 +16,7 @@ import {
   findActualString,
   preserveQuoteStyle,
   applyEditToFile,
+  countOccurrences,
 } from '../shared/edit-helpers.js';
 
 /**
@@ -61,9 +63,9 @@ export function createEdit(config: EditConfig = {}) {
         // 2. Read file
         let content: string;
         try {
-          content = await readFile(resolved, 'utf-8');
+          content = await readTextContent(resolved);
         } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
+          const msg = extractErrorMessage(err);
           return `Error [edit]: Cannot read file "${resolved}": ${msg}`;
         }
 
@@ -86,14 +88,7 @@ export function createEdit(config: EditConfig = {}) {
 
         // 6. Uniqueness check when not replace_all
         if (!replace_all) {
-          let count = 0;
-          let pos = 0;
-          while (pos < content.length) {
-            const idx = content.indexOf(actualOld, pos);
-            if (idx === -1) break;
-            count++;
-            pos = idx + 1;
-          }
+          const count = countOccurrences(content, actualOld);
           if (count > 1) {
             return (
               `Error [edit]: old_string appears ${count} times in "${resolved}". ` +
@@ -107,7 +102,7 @@ export function createEdit(config: EditConfig = {}) {
         const updated = applyEditToFile(content, actualOld, styledNew, replace_all);
 
         // 8. Write back
-        await writeFile(resolved, updated, 'utf-8');
+        await writeTextContent(resolved, updated);
 
         // 9. Success message with snippet
         const snippet = styledNew.length > 0
@@ -116,7 +111,7 @@ export function createEdit(config: EditConfig = {}) {
         return `Successfully edited "${resolved}". Replacement snippet:\n${snippet}`;
       } catch (error: unknown) {
         // 10. Never throw
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [edit]: ${msg}`;
       }
     },

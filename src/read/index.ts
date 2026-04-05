@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath } from '../shared/path.js';
 import { addLineNumbers, readFileInRange } from '../shared/file.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as readPrompt } from './prompt.js';
@@ -86,7 +87,7 @@ export function createRead(config: ReadConfig = {}) {
         });
         return numbered;
       } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [read]: ${msg}`;
       }
     },

@@ -1,5 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as webSearchPrompt } from './prompt.js';
@@ -38,7 +39,7 @@ export function createWebSearch(config: WebSearchConfig = {}) {
         }
         return await config.onSearch(query, { allowed_domains, blocked_domains });
       } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [web-search]: ${msg}`;
       }
     },

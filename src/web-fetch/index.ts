@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import type { TimeoutConfig } from '../shared/types.js';
 import { fetchUrl } from '../shared/fetch.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as webFetchPrompt } from './prompt.js';
@@ -68,8 +69,7 @@ export function createWebFetch(config: WebFetchConfig = {}) {
 
         return parts.join('\n');
       } catch (error) {
-        const msg =
-          error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [web-fetch]: Failed to fetch ${url}: ${msg}`;
       }
     },

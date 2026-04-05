@@ -1,7 +1,8 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { readTextContent } from '../shared/file.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { pathToFileURL } from 'node:url';
 import { resolve, extname } from 'node:path';
 import type { BaseToolConfig } from '../shared/types.js';
@@ -139,7 +140,7 @@ export async function executeLspOperation(
     await rpc(initId);
     sendNotification(proc, 'initialized', {});
 
-    const content = await readFile(absolutePath, 'utf-8');
+    const content = await readTextContent(absolutePath);
     const langId = extname(absolutePath).replace('.', '') || 'plaintext';
     sendNotification(proc, 'textDocument/didOpen', {
       textDocument: { uri, languageId: langId, version: 1, text: content },
@@ -207,7 +208,7 @@ export function createLsp(config: LspConfig = {}) {
           timeoutMs,
         );
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [lsp]: ${operation} failed for ${filePath}: ${msg}`;
       }
     },

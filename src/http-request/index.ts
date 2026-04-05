@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { TimeoutConfig } from '../shared/types.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as httpRequestPrompt } from './prompt.js';
@@ -102,7 +103,7 @@ export function createHttpRequest(config: HttpRequestConfig = {}) {
             `Try increasing the timeout or verify the server is responsive.`
           );
         }
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return (
           `Error [http-request]: ${method} ${url} failed: ${msg}. ` +
           `Verify the URL is correct and the server is reachable.`

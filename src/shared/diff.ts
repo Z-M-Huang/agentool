@@ -1,5 +1,5 @@
-import { readFile } from 'node:fs/promises';
 import { createTwoFilesPatch } from 'diff';
+import { readTextContent } from './file.js';
 
 /**
  * Options for controlling diff output.
@@ -76,8 +76,8 @@ export async function diffFiles(
   options?: DiffOptions,
 ): Promise<string> {
   const [oldContent, newContent] = await Promise.all([
-    readFile(oldFilePath, 'utf-8'),
-    readFile(newFilePath, 'utf-8'),
+    readTextContent(oldFilePath),
+    readTextContent(newFilePath),
   ]);
 
   return diffStrings(oldContent, newContent, {

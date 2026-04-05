@@ -1,6 +1,7 @@
 import { tool, zodSchema } from 'ai';
 import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as sleepPrompt } from './prompt.js';
@@ -79,8 +80,7 @@ export function createSleep(config: SleepConfig = {}) {
         }
         return parts.join('. ');
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : String(error);
+        const message = extractErrorMessage(error);
         return `Sleep failed: ${message}`;
       }
     },

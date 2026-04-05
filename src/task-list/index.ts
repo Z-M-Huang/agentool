@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { join } from 'node:path';
 import type { BaseToolConfig } from '../shared/types.js';
 import { loadTasks, formatTaskSummary } from '../shared/task-store.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as taskListPrompt } from './prompt.js';
@@ -28,7 +29,7 @@ export function createTaskList(config: TaskListConfig = {}) {
         if (visible.length === 0) return 'No tasks found.';
         return visible.map(formatTaskSummary).join('\n');
       } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [task-list]: ${msg}`;
       }
     },

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { join } from 'node:path';
 import type { BaseToolConfig } from '../shared/types.js';
 import { loadTasks, saveTasks, formatTask } from '../shared/task-store.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as taskUpdatePrompt } from './prompt.js';
@@ -89,7 +90,7 @@ export function createTaskUpdate(config: TaskUpdateConfig = {}) {
         await saveTasks(tasksFile, tasks);
         return `Updated task ${input.taskId}.\n${formatTask(entry)}`;
       } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [task-update]: ${msg}`;
       }
     },

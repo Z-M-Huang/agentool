@@ -1,5 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as toolSearchPrompt } from './prompt.js';
@@ -58,7 +59,7 @@ export function createToolSearch(config: ToolSearchConfig = {}) {
           .map((e) => `${e.name}: ${e.description}`)
           .join('\n');
       } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [tool-search]: ${msg}`;
       }
     },

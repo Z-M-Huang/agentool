@@ -1,6 +1,7 @@
 import { tool, zodSchema } from 'ai';
 import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as contextCompactionPrompt } from './prompt.js';
@@ -117,8 +118,7 @@ export function createContextCompaction(
           originalCount: messages.length,
         });
       } catch (error) {
-        const msg =
-          error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [context-compaction]: Summarization failed: ${msg}`;
       }
     },

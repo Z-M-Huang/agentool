@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { join } from 'node:path';
 import type { BaseToolConfig } from '../shared/types.js';
 import { loadTasks, formatTask } from '../shared/task-store.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as taskGetPrompt } from './prompt.js';
@@ -30,7 +31,7 @@ export function createTaskGet(config: TaskGetConfig = {}) {
         if (!found) return `Error [task-get]: Task "${taskId}" not found.`;
         return formatTask(found);
       } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [task-get]: ${msg}`;
       }
     },

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath } from '../shared/path.js';
 import { glob as sharedGlob } from '../shared/glob.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as globPrompt } from './prompt.js';
@@ -55,8 +56,7 @@ export function createGlob(config: GlobConfig = {}) {
 
         return `${header}\n${files.join('\n')}`;
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : String(error);
+        const message = extractErrorMessage(error);
         return `Error [glob]: Failed to search for files: ${message}`;
       }
     },

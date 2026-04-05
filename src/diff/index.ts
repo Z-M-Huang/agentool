@@ -1,8 +1,9 @@
-import { readFile } from 'node:fs/promises';
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
 import { expandPath } from '../shared/path.js';
+import { readTextContent } from '../shared/file.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { diffStrings, diffFiles } from '../shared/diff.js';
 import { getPrompt } from './prompt.js';
 
@@ -99,7 +100,7 @@ export function createDiff(config: DiffConfig = {}) {
         // Mode 3: File path + content
         if (file_path && (old_content !== undefined || new_content !== undefined)) {
           const resolvedPath = expandPath(file_path, cwd);
-          const fileContent = await readFile(resolvedPath, 'utf-8');
+          const fileContent = await readTextContent(resolvedPath);
 
           if (old_content !== undefined) {
             // Compare provided old_content against the file
@@ -123,7 +124,7 @@ export function createDiff(config: DiffConfig = {}) {
           '(3) file_path + old_content/new_content.'
         );
       } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [diff]: ${msg}`;
       }
     },

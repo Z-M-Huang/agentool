@@ -148,6 +148,24 @@ export function applyEditToFile(
     : f(originalContent, oldString, newString);
 }
 
+/**
+ * Count non-overlapping occurrences of `search` in `text`.
+ *
+ * @param text   - The text to search within.
+ * @param search - The substring to count.
+ * @returns The number of non-overlapping occurrences.
+ */
+export function countOccurrences(text: string, search: string): number {
+  if (search.length === 0) return 0;
+  let count = 0;
+  let pos = 0;
+  while ((pos = text.indexOf(search, pos)) !== -1) {
+    count++;
+    pos += search.length;
+  }
+  return count;
+}
+
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------

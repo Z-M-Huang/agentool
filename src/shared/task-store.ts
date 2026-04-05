@@ -1,5 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { readTextContent, writeTextContent } from './file.js';
 import { randomBytes } from 'node:crypto';
 
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'deleted';
@@ -24,7 +23,7 @@ export function generateId(): string {
 
 export async function loadTasks(filePath: string): Promise<Task[]> {
   try {
-    const data = await readFile(filePath, 'utf-8');
+    const data = await readTextContent(filePath);
     return JSON.parse(data) as Task[];
   } catch {
     return [];
@@ -32,8 +31,7 @@ export async function loadTasks(filePath: string): Promise<Task[]> {
 }
 
 export async function saveTasks(filePath: string, tasks: Task[]): Promise<void> {
-  await mkdir(dirname(filePath), { recursive: true });
-  await writeFile(filePath, JSON.stringify(tasks, null, 2), 'utf-8');
+  await writeTextContent(filePath, JSON.stringify(tasks, null, 2));
 }
 
 export function formatTask(t: Task): string {

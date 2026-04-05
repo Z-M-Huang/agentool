@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import type { TimeoutConfig } from '../shared/types.js';
 import { executeShell } from '../shared/shell.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as bashPrompt } from './prompt.js';
@@ -78,7 +79,7 @@ export function createBash(config: BashConfig = {}) {
           ? parts.join('\n')
           : `Command completed with exit code ${result.exitCode}`;
       } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [bash]: Failed to execute command: ${msg}`;
       }
     },

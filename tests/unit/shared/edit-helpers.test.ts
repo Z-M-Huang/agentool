@@ -8,6 +8,7 @@ import {
   findActualString,
   preserveQuoteStyle,
   applyEditToFile,
+  countOccurrences,
 } from '../../../src/shared/edit-helpers.js';
 
 // ---------------------------------------------------------------------------
@@ -231,5 +232,31 @@ describe('curly quote application edge cases', () => {
 
     const result = preserveQuoteStyle(oldString, actualOldString, newString);
     expect(result).toContain(LEFT_SINGLE_CURLY_QUOTE);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// countOccurrences
+// ---------------------------------------------------------------------------
+describe('countOccurrences', () => {
+  it('counts non-overlapping occurrences', () => {
+    expect(countOccurrences('abcabc', 'abc')).toBe(2);
+  });
+
+  it('returns 0 for empty search string', () => {
+    expect(countOccurrences('hello', '')).toBe(0);
+  });
+
+  it('returns 0 when not found', () => {
+    expect(countOccurrences('hello', 'xyz')).toBe(0);
+  });
+
+  it('uses non-overlapping semantics', () => {
+    // "aaaa" with "aa" → 2 (non-overlapping), NOT 3 (overlapping)
+    expect(countOccurrences('aaaa', 'aa')).toBe(2);
+  });
+
+  it('counts single occurrence', () => {
+    expect(countOccurrences('hello world', 'world')).toBe(1);
   });
 });

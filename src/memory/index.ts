@@ -1,9 +1,10 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { BaseToolConfig } from '../shared/types.js';
 import { containsPathTraversal } from '../shared/path.js';
+import { writeTextContent, readTextContent, listDirectory, removeFile } from '../shared/file.js';
+import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as memoryPrompt } from './prompt.js';
@@ -101,7 +102,7 @@ export function createMemory(config: MemoryConfig = {}) {
             return `Error [memory]: Unknown action "${String(action)}".`;
         }
       } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : String(error);
+        const msg = extractErrorMessage(error);
         return `Error [memory]: ${msg}`;
       }
     },
@@ -112,14 +113,13 @@ async function writeEntry(dir: string, key: string, content: string | undefined)
   if (!content && content !== '') {
     return 'Error [memory]: Content is required for write action.';
   }
-  await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, `${key}.md`), content, 'utf-8');
+  await writeTextContent(join(dir, `${key}.md`), content);
   return `Saved memory "${key}".`;
 }
 
 async function readEntry(dir: string, key: string): Promise<string> {
   try {
-    return await readFile(join(dir, `${key}.md`), 'utf-8');
+    return await readTextContent(join(dir, `${key}.md`));
   } catch {
     return `Error [memory]: Key "${key}" not found.`;
   }
@@ -127,7 +127,7 @@ async function readEntry(dir: string, key: string): Promise<string> {
 
 async function listKeys(dir: string): Promise<string> {
   try {
-    const files = await readdir(dir);
+    const files = await listDirectory(dir);
     const keys = files.filter(f => f.endsWith('.md')).map(f => f.slice(0, -3));
     if (keys.length === 0) return 'No memory entries found.';
     return keys.join('\n');
@@ -138,7 +138,7 @@ async function listKeys(dir: string): Promise<string> {
 
 async function deleteEntry(dir: string, key: string): Promise<string> {
   try {
-    await unlink(join(dir, `${key}.md`));
+    await removeFile(join(dir, `${key}.md`));
     return `Deleted memory "${key}".`;
   } catch {
     return `Error [memory]: Key "${key}" not found.`;
