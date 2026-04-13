@@ -2,7 +2,7 @@
 
 # agentool
 
-**22 AI agent tools as standalone [Vercel AI SDK](https://sdk.vercel.ai/) modules.**
+**21 AI agent tools + context-compaction middleware for the [Vercel AI SDK](https://sdk.vercel.ai/).**
 
   <p>
   <a href="https://www.npmjs.com/package/agentool"><img src="https://img.shields.io/npm/v/agentool?style=flat-square&color=cb3837&logo=npm" alt="npm version" /></a>
@@ -14,7 +14,7 @@
   <p>
   <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js" />
   <img src="https://img.shields.io/badge/TypeScript-5.7+-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Vercel%20AI%20SDK-v4%2B-000000?style=flat-square&logo=vercel&logoColor=white" alt="Vercel AI SDK" />
+  <img src="https://img.shields.io/badge/Vercel%20AI%20SDK-v5%2B-000000?style=flat-square&logo=vercel&logoColor=white" alt="Vercel AI SDK" />
   <img src="https://img.shields.io/badge/ESM%20%2B%20CJS-supported-22c55e?style=flat-square" alt="ESM + CJS" />
   <img src="https://img.shields.io/badge/coverage-96%25-brightgreen?style=flat-square" alt="Test Coverage" />
   <img src="https://visitor-badge.laobi.icu/badge?page_id=Z-M-Huang.agentool&style=flat-square" alt="Visitors" />
@@ -27,7 +27,8 @@ File operations, shell execution, code search, web fetching, and more -- everyth
 
 ## Features
 
-- **22 production-ready tools** -- bash, grep, glob, read, edit, write, web-fetch, web-search, tool-search, memory, multi-edit, diff, task-create, task-get, task-update, task-list, lsp, http-request, context-compaction, ask-user, sleep
+- **21 production-ready tools** -- bash, grep, glob, read, edit, write, web-fetch, web-search, tool-search, memory, multi-edit, diff, task-create, task-get, task-update, task-list, lsp, http-request, ask-user, sleep
+- **Context-compaction middleware** -- transparent prompt compaction via `wrapLanguageModel()`, preserves system messages and recent turns
 - **Vercel AI SDK compatible** -- works with `generateText()`, `streamText()`, and any AI SDK provider (OpenAI, Anthropic, Google, etc.)
 - **Factory + default pattern** -- `createBash({ cwd: '/my/project' })` for custom config, or just use `bash` with zero config
 - **Dual ESM/CJS** -- works everywhere with proper `exports` map
@@ -540,33 +541,34 @@ const result = await lsp.execute(
 
 ---
 
-### context-compaction
+### context-compaction (middleware)
 
-Compact conversation history to fit within token budgets.
+Transparent context compaction middleware for `wrapLanguageModel()`. When the prompt exceeds a configurable threshold, it automatically summarizes older conversation history while preserving system messages and recent turns.
 
 ```typescript
 import { createContextCompaction } from 'agentool/context-compaction';
+import { wrapLanguageModel, generateText } from 'ai';
+import { anthropic } from '@ai-sdk/anthropic';
 
-const compact = createContextCompaction({
-  maxTokens: 4096,
-  summarize: async (messages) => {
-    // Call your LLM to summarize
-    return 'Summary of previous conversation...';
-  },
+const model = wrapLanguageModel({
+  model: anthropic('claude-sonnet-4-20250514'),
+  middleware: createContextCompaction({
+    maxContextTokens: 200_000,        // model's context window (required)
+    autoCompactThresholdPct: 0.80,    // compact when 80% full (default)
+    summaryTargetPct: 0.05,           // summarize to 5% of context (default)
+  }),
 });
 
-const result = await compact.execute(
-  {
-    messages: [
-      { role: 'user', content: 'Long conversation...' },
-      { role: 'assistant', content: 'Long response...' },
-    ],
-  },
-  { toolCallId: 'id', messages: [] },
-);
+// Use the wrapped model normally — compaction is transparent
+const { text } = await generateText({
+  model,
+  tools: { bash, read, edit },
+  maxSteps: 20,
+  prompt: 'Find and fix the bug in src/auth.ts',
+});
 ```
 
-**Parameters:** `messages` (array of `{ role, content }`), `maxTokens?` (number)
+**Config:** `maxContextTokens` (number, required), `autoCompactThresholdPct?` (0-1), `summaryTargetPct?` (0-1), `reservedOutputTokens?` (number), `estimateTokens?` (function), `summarize?` (function), `onCompactionFailure?` (`'passthrough'` | `'throw'`)
 
 ---
 
@@ -657,7 +659,6 @@ Tools that support timeouts extend `TimeoutConfig`:
 | `lsp` | `servers?: Record<string, LspServerConfig>` -- LSP servers by file extension |
 | `http-request` | `defaultHeaders?: Record<string, string>` -- headers merged into every request |
 | `web-fetch` | `maxContentLength?: number`, `userAgent?: string` |
-| `context-compaction` | `summarize?: (messages) => Promise<string>`, `maxTokens?: number` |
 | `ask-user` | `onQuestion?: (question, options?) => Promise<string>` |
 | `sleep` | `maxDuration?: number` -- cap in ms (default: 300000) |
 
@@ -699,7 +700,7 @@ import {
   taskUpdate, createTaskUpdate,
   taskList, createTaskList,
   lsp, createLsp,
-  contextCompaction, createContextCompaction,
+  createContextCompaction,  // middleware, not a tool
   askUser, createAskUser,
   sleep, createSleep,
 } from 'agentool';
@@ -726,7 +727,7 @@ import { taskList } from 'agentool/task-list';
 import { webSearch } from 'agentool/web-search';
 import { toolSearch } from 'agentool/tool-search';
 import { lsp } from 'agentool/lsp';
-import { contextCompaction } from 'agentool/context-compaction';
+import { createContextCompaction } from 'agentool/context-compaction'; // middleware
 import { askUser } from 'agentool/ask-user';
 import { sleep } from 'agentool/sleep';
 ```
@@ -757,7 +758,7 @@ console.log(text);
 | Dependency | Version | Required |
 |-----------|---------|----------|
 | Node.js | >= 18 | Yes |
-| `ai` (Vercel AI SDK) | >= 4.0.0 | Peer dependency |
+| `ai` (Vercel AI SDK) | >= 5.0.17 | Peer dependency |
 | `zod` | >= 3.23.0 | Peer dependency |
 | `ripgrep` (`rg`) | any | For grep/glob tools |
 

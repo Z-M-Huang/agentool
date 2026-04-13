@@ -12,7 +12,6 @@ import { diff } from '../../src/diff/index.js';
 import { taskGet } from '../../src/task-get/index.js';
 import { lsp } from '../../src/lsp/index.js';
 import { httpRequest } from '../../src/http-request/index.js';
-import { contextCompaction } from '../../src/context-compaction/index.js';
 import { askUser } from '../../src/ask-user/index.js';
 import { sleep } from '../../src/sleep/index.js';
 
@@ -139,22 +138,6 @@ describe('error handling: execute never throws', () => {
     expect(typeof result).toBe('string');
     expect(result).toContain('Error [ask-user]');
     expect(result).toContain('onQuestion');
-  });
-
-  it('context-compaction: over budget with no summarizer returns error string', async () => {
-    const longContent = 'x'.repeat(50_000);
-    const result = await contextCompaction.execute(
-      {
-        messages: [
-          { role: 'user', content: longContent },
-          { role: 'assistant', content: longContent },
-        ],
-      },
-      ctx,
-    );
-    expect(typeof result).toBe('string');
-    expect(result).toContain('Error [context-compaction]');
-    expect(result).toContain('summarize');
   });
 
   it('multi-edit: file not found returns error string', async () => {
