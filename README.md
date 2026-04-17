@@ -2,7 +2,7 @@
 
 # agentool
 
-**21 AI agent tools + context-compaction middleware for the [Vercel AI SDK](https://sdk.vercel.ai/).**
+**21 AI agent tools + context-compaction helper for the [Vercel AI SDK](https://sdk.vercel.ai/).**
 
   <p>
   <a href="https://www.npmjs.com/package/agentool"><img src="https://img.shields.io/npm/v/agentool?style=flat-square&color=cb3837&logo=npm" alt="npm version" /></a>
@@ -541,34 +541,112 @@ const result = await lsp.execute(
 
 ---
 
-### context-compaction (middleware)
+### context-compaction (function)
 
-Transparent context compaction middleware for `wrapLanguageModel()`. When the prompt exceeds a configurable threshold, it automatically summarizes older conversation history while preserving system messages and recent turns.
+> **Breaking in 1.3.0:** the `createContextCompaction` middleware was removed in favor of a pure `compactMessages` function. The middleware couldn't persist compacted state back to the caller, so every over-threshold turn re-summarized — costly and cache-busting. The function form returns the new messages and the caller assigns it back. See [migration](#migration-from-12x).
+
+`compactMessages` summarizes older conversation history when usage crosses a threshold, preserving the leading system prefix and the most recent turns. It works with any provider the AI SDK supports (OpenAI / Anthropic / Google / Mistral / xAI / etc.) because it operates on the unified `ModelMessage[]` shape.
 
 ```typescript
-import { createContextCompaction } from 'agentool/context-compaction';
-import { wrapLanguageModel, generateText } from 'ai';
+import { compactMessages } from 'agentool/context-compaction';
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+const model = openai('gpt-5');
+let messages: ModelMessage[] = [];
+
+// Each turn:
+messages.push({ role: 'user', content: userInput });
+messages = await compactMessages({
+  messages,
+  summaryModel: openai('gpt-5-mini'),  // cheap summarizer (can differ from main model)
+  maxContextTokens: 400_000,
+});
+const result = await generateText({ model, messages });
+messages.push(...result.response.messages);
+```
+
+When usage is under threshold, `compactMessages` returns the **same `messages` reference** (`===`), so the second-call cost is cheap.
+
+**Output shape after compaction:**
+```
+[ ...leadingSystemPrefix,
+  { role: 'user',      content: <summary> },
+  { role: 'assistant', content: 'Understood.' },
+  ...lastNMessages ]
+```
+The synthetic `user → assistant` ack pair preserves role alternation (required by Anthropic / Google providers).
+
+**Tool-chain safety:** the recent-window boundary auto-extends backwards so `tool-call` / `tool-result` / `tool-approval-request` / `tool-approval-response` IDs are never split across the summarization boundary. No `MissingToolResultsError` from the AI SDK.
+
+**Cross-provider example (Anthropic):**
+```typescript
 import { anthropic } from '@ai-sdk/anthropic';
 
-const model = wrapLanguageModel({
-  model: anthropic('claude-sonnet-4-20250514'),
-  middleware: createContextCompaction({
-    maxContextTokens: 200_000,        // model's context window (required)
-    autoCompactThresholdPct: 0.80,    // compact when 80% full (default)
-    summaryTargetPct: 0.05,           // summarize to 5% of context (default)
-  }),
-});
-
-// Use the wrapped model normally — compaction is transparent
-const { text } = await generateText({
-  model,
-  tools: { bash, read, edit },
-  maxSteps: 20,
-  prompt: 'Find and fix the bug in src/auth.ts',
+messages = await compactMessages({
+  messages,
+  summaryModel: anthropic('claude-sonnet-4-20250514'),
+  maxContextTokens: 200_000,
 });
 ```
 
-**Config:** `maxContextTokens` (number, required), `autoCompactThresholdPct?` (0-1), `summaryTargetPct?` (0-1), `reservedOutputTokens?` (number), `estimateTokens?` (function), `summarize?` (function), `onCompactionFailure?` (`'passthrough'` | `'throw'`)
+**Custom summarizer (e.g. local model, cached, or anything else):**
+```typescript
+messages = await compactMessages({
+  messages,
+  maxContextTokens: 200_000,
+  summarize: async (older, targetTokens) => {
+    return callMyOwnSummarizer(older, targetTokens);
+  },
+});
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `messages` | `ModelMessage[]` | required | Conversation to compact |
+| `maxContextTokens` | `number` | required | Model's context window |
+| `summaryModel` *or* `summarize` | `LanguageModelV3` *or* fn | required | Exactly one |
+| `autoCompactThresholdPct` | `number` (0-1) | `0.8` | Trigger threshold |
+| `summaryTargetTokens` | `number` | `floor(maxContextTokens * 0.05)` | Target summary size |
+| `reservedOutputTokens` | `number` | `16384` | Tokens reserved for output |
+| `keepRecentMessages` | `number` | `1` | Last N messages kept verbatim (extended for tool-chain safety) |
+| `estimateTokens` | `(msgs) => number` | char/4 heuristic | Custom token estimator (use a real tokenizer for accuracy) |
+| `onCompactionFailure` | `'passthrough' \| 'throw'` | `'passthrough'` | What to do when summarization fails or returns oversize text |
+
+**Caveats:**
+- Default token estimation is char/4 — coarse but provider-agnostic. For accuracy pass `estimateTokens` with a provider-specific tokenizer (e.g. `tiktoken` for OpenAI, `@anthropic-ai/tokenizer` for Anthropic).
+- Multimodal content (images, files) is reduced to placeholders during summarization. Original binary data is gone from the persisted compacted history.
+- Summary-of-summary degradation accumulates over very long sessions. Recommend periodic session restarts for long-lived agents.
+- Mid-conversation `system` messages are NOT hoisted — only the leading contiguous system prefix is preserved as system.
+
+#### Migration from 1.2.x
+
+Before (v1.2.x):
+```typescript
+import { createContextCompaction } from 'agentool/context-compaction';
+import { wrapLanguageModel } from 'ai';
+
+const model = wrapLanguageModel({
+  model: anthropic('claude-sonnet-4-20250514'),
+  middleware: createContextCompaction({ maxContextTokens: 200_000 }),
+});
+const { text } = await generateText({ model, messages });
+```
+
+After (v1.3.0):
+```typescript
+import { compactMessages } from 'agentool/context-compaction';
+
+const model = anthropic('claude-sonnet-4-20250514');
+messages = await compactMessages({
+  messages,
+  summaryModel: model,
+  maxContextTokens: 200_000,
+});
+const { text } = await generateText({ model, messages });
+```
 
 ---
 
@@ -700,7 +778,7 @@ import {
   taskUpdate, createTaskUpdate,
   taskList, createTaskList,
   lsp, createLsp,
-  createContextCompaction,  // middleware, not a tool
+  compactMessages,  // helper function, not a tool
   askUser, createAskUser,
   sleep, createSleep,
 } from 'agentool';
@@ -727,7 +805,7 @@ import { taskList } from 'agentool/task-list';
 import { webSearch } from 'agentool/web-search';
 import { toolSearch } from 'agentool/tool-search';
 import { lsp } from 'agentool/lsp';
-import { createContextCompaction } from 'agentool/context-compaction'; // middleware
+import { compactMessages } from 'agentool/context-compaction'; // helper function
 import { askUser } from 'agentool/ask-user';
 import { sleep } from 'agentool/sleep';
 ```

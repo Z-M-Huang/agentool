@@ -53,8 +53,11 @@ export type { LspConfig } from './lsp/index.js';
 export { createHttpRequest, httpRequest, httpRequestPrompt } from './http-request/index.js';
 export type { HttpRequestConfig } from './http-request/index.js';
 
-export { createContextCompaction } from './middleware/context-compaction/index.js';
-export type { ContextCompactionConfig } from './middleware/context-compaction/index.js';
+export { compactMessages } from './middleware/context-compaction/index.js';
+export type {
+  CompactMessagesOptions,
+  CompactSummarizer,
+} from './middleware/context-compaction/index.js';
 
 export { createAskUser, askUser, askUserPrompt } from './ask-user/index.js';
 export type { AskUserConfig } from './ask-user/index.js';
