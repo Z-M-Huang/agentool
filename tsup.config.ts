@@ -21,6 +21,7 @@ export default defineConfig({
     'tool-search/index': 'src/tool-search/index.ts',
     'lsp/index': 'src/lsp/index.ts',
     'http-request/index': 'src/http-request/index.ts',
+    'output-validator/index': 'src/output-validator/index.ts',
     'context-compaction/index': 'src/middleware/context-compaction/index.ts',
     'ask-user/index': 'src/ask-user/index.ts',
     'sleep/index': 'src/sleep/index.ts',
@@ -29,6 +30,6 @@ export default defineConfig({
   dts: true,
   splitting: true,
   clean: true,
-  external: ['ai', 'zod'],
+  external: ['ai', 'zod', 'ajv'],
   target: 'node18',
 });

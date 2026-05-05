@@ -2,7 +2,7 @@
 
 # agentool
 
-**21 AI agent tools + context-compaction helper for the [Vercel AI SDK](https://sdk.vercel.ai/).**
+**22 AI agent tools + context-compaction helper for the [Vercel AI SDK](https://sdk.vercel.ai/).**
 
   <p>
   <a href="https://www.npmjs.com/package/agentool"><img src="https://img.shields.io/npm/v/agentool?style=flat-square&color=cb3837&logo=npm" alt="npm version" /></a>
@@ -27,14 +27,14 @@ File operations, shell execution, code search, web fetching, and more -- everyth
 
 ## Features
 
-- **21 production-ready tools** -- bash, grep, glob, read, edit, write, web-fetch, web-search, tool-search, memory, multi-edit, diff, task-create, task-get, task-update, task-list, lsp, http-request, ask-user, sleep
+- **22 production-ready tools** -- bash, grep, glob, read, edit, write, web-fetch, web-search, tool-search, output-validator, memory, multi-edit, diff, task-create, task-get, task-update, task-list, lsp, http-request, ask-user, sleep
 - **Context-compaction middleware** -- transparent prompt compaction via `wrapLanguageModel()`, preserves system messages and recent turns
 - **Vercel AI SDK compatible** -- works with `generateText()`, `streamText()`, and any AI SDK provider (OpenAI, Anthropic, Google, etc.)
 - **Factory + default pattern** -- `createBash({ cwd: '/my/project' })` for custom config, or just use `bash` with zero config
 - **Dual ESM/CJS** -- works everywhere with proper `exports` map
 - **TypeScript-first** -- full type declarations, strict mode, no `any`
 - **Never throws** -- every `execute()` returns a descriptive error string instead of throwing
-- **Tree-shakeable** -- 22 subpath exports, only import what you need
+- **Tree-shakeable** -- 23 subpath exports, only import what you need
 
 ## Installation
 
@@ -379,6 +379,50 @@ const result = await toolSearch.execute(
 ```
 
 **Parameters:** `query` (string), `max_results?` (number, default 5)
+
+---
+
+### output-validator
+
+Validate the exact final JSON response against a JSON Schema configured by the application.
+
+```typescript
+import { createOutputValidator } from 'agentool/output-validator';
+
+const outputValidator = createOutputValidator({
+  schemaId: 'answer-v1',
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['answer', 'confidence'],
+    properties: {
+      answer: { type: 'string' },
+      confidence: { type: 'number', minimum: 0, maximum: 1 },
+    },
+  },
+});
+
+const result = await outputValidator.execute(
+  { content: '{"answer":"Use the validator per turn.","confidence":0.92}' },
+  { toolCallId: 'id', messages: [] },
+);
+// Returns JSON: { "valid": true, "schemaId": "answer-v1", ... }
+```
+
+Use a fresh validator instance for the current turn's schema:
+
+```typescript
+const tools = {
+  output_validator: createOutputValidator({
+    schemaId: 'current-turn-output',
+    schema: currentTurnSchema,
+  }),
+};
+```
+
+If the schema changes on the next turn, create a new validator and pass it under the same tool name. No new chat session is required as long as your app rebuilds the tool list for that model call.
+
+**Parameters:** `content` (string, exact final JSON response text)
 
 ---
 
@@ -734,6 +778,7 @@ Tools that support timeouts extend `TimeoutConfig`:
 | `task-list` | `tasksFile?: string` -- JSON file path |
 | `web-search` | `onSearch?: (query, opts) => Promise<string>` -- search callback |
 | `tool-search` | `tools?: Record<string, { description }>` -- tool registry |
+| `output-validator` | `schema?: JsonSchema`, `schemaId?: string`, `ajvOptions?: Record<string, unknown>` |
 | `lsp` | `servers?: Record<string, LspServerConfig>` -- LSP servers by file extension |
 | `http-request` | `defaultHeaders?: Record<string, string>` -- headers merged into every request |
 | `web-fetch` | `maxContentLength?: number`, `userAgent?: string` |
@@ -769,6 +814,7 @@ import {
   webFetch, createWebFetch,
   webSearch, createWebSearch,
   toolSearch, createToolSearch,
+  outputValidator, createOutputValidator,
   httpRequest, createHttpRequest,
   memory, createMemory,
   multiEdit, createMultiEdit,
@@ -804,6 +850,7 @@ import { taskUpdate } from 'agentool/task-update';
 import { taskList } from 'agentool/task-list';
 import { webSearch } from 'agentool/web-search';
 import { toolSearch } from 'agentool/tool-search';
+import { outputValidator } from 'agentool/output-validator';
 import { lsp } from 'agentool/lsp';
 import { compactMessages } from 'agentool/context-compaction'; // helper function
 import { askUser } from 'agentool/ask-user';
