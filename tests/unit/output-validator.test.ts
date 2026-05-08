@@ -82,6 +82,46 @@ describe('output-validator tool', () => {
       );
     });
 
+    it('validates string enum properties', async () => {
+      const enumSchema: JsonSchema = {
+        type: 'object',
+        additionalProperties: false,
+        required: ['status'],
+        properties: {
+          status: { type: 'string', enum: ['queued', 'running', 'done'] },
+        },
+      };
+      const tool = createOutputValidator({
+        schemaId: 'status-v1',
+        schema: enumSchema,
+      });
+
+      const validRaw = await tool.execute(
+        { content: '{"status":"running"}' },
+        toolOpts,
+      );
+      expect(parseResult(validRaw)).toMatchObject({
+        valid: true,
+        schemaId: 'status-v1',
+      });
+
+      const invalidRaw = await tool.execute(
+        { content: '{"status":"failed"}' },
+        toolOpts,
+      );
+      const invalidResult = parseResult(invalidRaw);
+
+      expect(invalidResult.valid).toBe(false);
+      expect(invalidResult.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: '/status',
+            keyword: 'enum',
+          }),
+        ]),
+      );
+    });
+
     it('returns a parse error when content is not valid JSON', async () => {
       const tool = createOutputValidator({ schemaId: 'answer-v1', schema });
       const raw = await tool.execute(
