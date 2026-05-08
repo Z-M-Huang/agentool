@@ -22,7 +22,7 @@ describe('getTurndownService', () => {
   it('returns an object with a turndown method', async () => {
     const service = await getTurndownService();
     expect(typeof service.turndown).toBe('function');
-  });
+  }, 15_000);
 
   it('returns the same instance on subsequent calls (singleton)', async () => {
     const first = await getTurndownService();

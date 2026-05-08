@@ -1,7 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { BaseToolConfig } from '../shared/types.js';
-import { expandPath } from '../shared/path.js';
+import { expandPath, toRelativePath } from '../shared/path.js';
 import { glob as sharedGlob } from '../shared/glob.js';
 import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
@@ -12,7 +12,9 @@ export { getPrompt as globPrompt } from './prompt.js';
  * Creates a glob tool that finds files matching a pattern.
  *
  * Uses ripgrep `--files --glob` under the hood for fast file matching.
- * Returns absolute paths sorted by modification time (newest first).
+ * Returns paths sorted by modification time (newest first). Paths under the
+ * configured cwd are relative by default, matching Claude Code's model-facing
+ * output.
  * Execute never throws; errors are returned as descriptive strings.
  *
  * @param config - Optional configuration with a custom working directory.
@@ -31,6 +33,7 @@ export { getPrompt as globPrompt } from './prompt.js';
  */
 export function createGlob(config: GlobConfig = {}) {
   const cwd = config.cwd ?? process.cwd();
+  const pathStyle = config.pathStyle ?? 'relative';
 
   return tool({
     description: config.description ?? getPrompt(),
@@ -54,7 +57,12 @@ export function createGlob(config: GlobConfig = {}) {
           ? `Found ${files.length}+ files (results truncated)`
           : `Found ${files.length} files`;
 
-        return `${header}\n${files.join('\n')}`;
+        const outputFiles =
+          pathStyle === 'absolute'
+            ? files
+            : files.map((file) => toRelativePath(file, cwd));
+
+        return `${header}\n${outputFiles.join('\n')}`;
       } catch (error: unknown) {
         const message = extractErrorMessage(error);
         return `Error [glob]: Failed to search for files: ${message}`;
@@ -76,6 +84,11 @@ export function createGlob(config: GlobConfig = {}) {
  * ```
  */
 export type GlobConfig = BaseToolConfig & {
+  /**
+   * Path style for model-facing results.
+   * Defaults to "relative" to match Claude Code.
+   */
+  pathStyle?: 'relative' | 'absolute';
   /** Override the default tool description. */
   description?: string;
 };

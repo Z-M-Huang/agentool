@@ -514,6 +514,51 @@ describe('compactMessages — config validation', () => {
     ).rejects.toThrow(/reservedOutputTokens/);
   });
 
+  it('throws when reservedOutputTokens is negative', async () => {
+    await expect(
+      compactMessages({
+        messages: [],
+        maxContextTokens: 1000,
+        reservedOutputTokens: -1,
+        summarize: freshSummarizer(),
+      }),
+    ).rejects.toThrow(/reservedOutputTokens/);
+  });
+
+  it('throws when autoCompactThresholdPct is outside the valid range', async () => {
+    await expect(
+      compactMessages({
+        messages: [],
+        maxContextTokens: 1000,
+        reservedOutputTokens: 0,
+        autoCompactThresholdPct: 0,
+        summarize: freshSummarizer(),
+      }),
+    ).rejects.toThrow(/autoCompactThresholdPct/);
+
+    await expect(
+      compactMessages({
+        messages: [],
+        maxContextTokens: 1000,
+        reservedOutputTokens: 0,
+        autoCompactThresholdPct: 1.1,
+        summarize: freshSummarizer(),
+      }),
+    ).rejects.toThrow(/autoCompactThresholdPct/);
+  });
+
+  it('throws when summaryTargetTokens cannot fit', async () => {
+    await expect(
+      compactMessages({
+        messages: [],
+        maxContextTokens: 1000,
+        reservedOutputTokens: 0,
+        summaryTargetTokens: 1000,
+        summarize: freshSummarizer(),
+      }),
+    ).rejects.toThrow(/summaryTargetTokens/);
+  });
+
   it('throws when keepRecentMessages is < 1', async () => {
     await expect(
       compactMessages({
@@ -521,6 +566,18 @@ describe('compactMessages — config validation', () => {
         maxContextTokens: 1000,
         reservedOutputTokens: 0,
         keepRecentMessages: 0,
+        summarize: freshSummarizer(),
+      }),
+    ).rejects.toThrow(/keepRecentMessages/);
+  });
+
+  it('throws when keepRecentMessages is not an integer', async () => {
+    await expect(
+      compactMessages({
+        messages: [],
+        maxContextTokens: 1000,
+        reservedOutputTokens: 0,
+        keepRecentMessages: 1.5,
         summarize: freshSummarizer(),
       }),
     ).rejects.toThrow(/keepRecentMessages/);

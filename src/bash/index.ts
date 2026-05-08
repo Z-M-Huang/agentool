@@ -1,7 +1,11 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { TimeoutConfig } from '../shared/types.js';
-import { executeShell } from '../shared/shell.js';
+import {
+  executeShell,
+  resolveShellOutputChars,
+  truncateShellOutput,
+} from '../shared/shell.js';
 import { extractErrorMessage } from '../shared/errors.js';
 import { getPrompt } from './prompt.js';
 
@@ -20,6 +24,11 @@ export { getPrompt as bashPrompt } from './prompt.js';
 export interface BashConfig extends TimeoutConfig {
   /** Shell binary to use. Defaults to `$SHELL` or `/bin/bash`. */
   shell?: string;
+  /**
+   * Maximum model-facing output characters to return before truncating.
+   * Defaults to 30 000. Values above 150 000 are capped.
+   */
+  maxOutputChars?: number;
   /** Override the default tool description. */
   description?: string;
 }
@@ -48,6 +57,7 @@ export interface BashConfig extends TimeoutConfig {
 export function createBash(config: BashConfig = {}) {
   const cwd = config.cwd ?? process.cwd();
   const timeout = config.timeout ?? 120_000;
+  const maxOutputChars = resolveShellOutputChars(config.maxOutputChars);
 
   return tool({
     description: config.description ?? getPrompt(config),
@@ -70,9 +80,17 @@ export function createBash(config: BashConfig = {}) {
           shell: config.shell,
         });
 
+        const outputParts: string[] = [];
+        if (result.stdout) outputParts.push(result.stdout);
+        if (result.stderr) outputParts.push(`STDERR:\n${result.stderr}`);
+
+        const output = truncateShellOutput(
+          outputParts.join('\n'),
+          maxOutputChars,
+        );
+
         const parts: string[] = [];
-        if (result.stdout) parts.push(result.stdout);
-        if (result.stderr) parts.push(`STDERR:\n${result.stderr}`);
+        if (output) parts.push(output);
         if (result.exitCode !== 0) parts.push(`Exit code: ${result.exitCode}`);
 
         return parts.length > 0

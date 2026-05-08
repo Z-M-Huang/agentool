@@ -1,16 +1,11 @@
-import { execFile, execFileSync } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 import type { ExecFileException } from 'node:child_process';
 
 const MAX_BUFFER_SIZE = 20_000_000; // 20MB
 const DEFAULT_TIMEOUT = 20_000; // 20 seconds
 const INSTALL_URL = 'https://github.com/BurntSushi/ripgrep#installation';
 
-/**
- * Error thrown when the `rg` binary cannot be found on PATH.
- *
- * The message includes a link to the ripgrep installation instructions
- * so callers can surface actionable guidance to the user.
- */
+/** Error thrown when the `rg` binary cannot be found on PATH. */
 export class RipgrepNotFoundError extends Error {
   constructor(message?: string) {
     super(
@@ -22,17 +17,9 @@ export class RipgrepNotFoundError extends Error {
   }
 }
 
-/**
- * Error thrown when a ripgrep search exceeds its timeout.
- *
- * Any lines that were captured before the timeout are available
- * via {@link partialResults} so callers can still return partial data.
- */
+/** Error thrown when a ripgrep search exceeds its timeout. */
 export class RipgrepTimeoutError extends Error {
-  /**
-   * Lines captured from stdout before the process was killed.
-   * May be empty if no output arrived before the timeout.
-   */
+  /** Lines captured from stdout before the process was killed. */
   public readonly partialResults: string[];
 
   constructor(message: string, partialResults: string[]) {
@@ -42,15 +29,7 @@ export class RipgrepTimeoutError extends Error {
   }
 }
 
-/**
- * Locate the `rg` binary on the system PATH.
- *
- * Uses `which` to resolve the absolute path.
- * Throws {@link RipgrepNotFoundError} if `rg` is not installed.
- *
- * @returns The absolute path to the `rg` binary.
- * @throws {RipgrepNotFoundError} When `rg` cannot be found on PATH.
- */
+/** Locate the `rg` binary on the system PATH. */
 export function findRg(): string {
   try {
     const result = execFileSync('which', ['rg'], {
@@ -70,16 +49,7 @@ export function findRg(): string {
   }
 }
 
-/**
- * Check whether stderr indicates an EAGAIN error.
- *
- * EAGAIN ("Resource temporarily unavailable", OS error 11) occurs in
- * resource-constrained environments (Docker, CI) when ripgrep tries
- * to spawn too many threads.
- *
- * @param stderr - The stderr output from a ripgrep execution.
- * @returns `true` if the stderr contains EAGAIN indicators.
- */
+/** Check whether stderr indicates an EAGAIN error. */
 export function isEagainError(stderr: string): boolean {
   return (
     stderr.includes('os error 11') ||
@@ -87,12 +57,7 @@ export function isEagainError(stderr: string): boolean {
   );
 }
 
-/**
- * Parse raw stdout from ripgrep into an array of result lines.
- *
- * Trims the output, splits on newlines, strips trailing `\r`
- * characters, and removes empty lines.
- */
+/** Parse raw stdout from ripgrep into an array of result lines. */
 function parseStdout(stdout: string): string[] {
   return stdout
     .trim()
@@ -109,22 +74,104 @@ export interface ExecuteRipgrepOptions {
   signal?: AbortSignal;
 }
 
-/**
- * Execute a ripgrep search and return the matching lines.
- *
- * Handles the common ripgrep exit codes:
- * - **0** — matches found, lines returned.
- * - **1** — no matches, returns `[]`.
- * - **EAGAIN** — retries once with `-j 1` (single-threaded mode).
- * - **timeout** — throws {@link RipgrepTimeoutError} with any partial output.
- *
- * @param args - Arguments to pass to `rg` (flags, patterns, etc.).
- * @param target - The file or directory to search.
- * @param options - Optional timeout and abort signal.
- * @returns An array of result lines from ripgrep stdout.
- * @throws {RipgrepNotFoundError} If `rg` is not on PATH.
- * @throws {RipgrepTimeoutError} If the search exceeds the timeout.
- */
+export interface ExecuteRipgrepStreamOptions extends ExecuteRipgrepOptions {
+  /** Callback invoked with complete stdout lines as they arrive. */
+  onLines: (lines: string[]) => void;
+}
+
+/** Stream complete ripgrep stdout lines as they arrive. */
+export async function executeRipgrepStream(
+  args: string[],
+  target: string,
+  options: ExecuteRipgrepStreamOptions,
+): Promise<void> {
+  const rgPath = findRg();
+  const timeout = options.timeout ?? DEFAULT_TIMEOUT;
+
+  return new Promise<void>((resolve, reject) => {
+    const child = spawn(rgPath, [...args, target], {
+      signal: options.signal,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+
+    let remainder = '';
+    let stderr = '';
+    let timedOut = false;
+    let settled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const stripCR = (line: string): string => line.replace(/\r$/, '');
+    const settle = (error?: Error): void => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      if (error) reject(error);
+      else resolve();
+    };
+
+    child.stdout?.on('data', (chunk: Buffer) => {
+      const data = remainder + chunk.toString();
+      const lines = data.split('\n');
+      remainder = lines.pop() ?? '';
+      if (lines.length > 0) {
+        options.onLines(lines.map(stripCR).filter(Boolean));
+      }
+    });
+
+    child.stderr?.on('data', (chunk: Buffer) => {
+      if (stderr.length >= MAX_BUFFER_SIZE) return;
+      const remaining = MAX_BUFFER_SIZE - stderr.length;
+      const str = chunk.toString();
+      stderr += str.length > remaining ? str.slice(0, remaining) : str;
+    });
+
+    child.on('close', (code) => {
+      if (settled) return;
+
+      if (timedOut) {
+        settle(
+          new RipgrepTimeoutError(
+            `Ripgrep search timed out after ${timeout / 1000} seconds. ` +
+              `Try a more specific path or pattern.`,
+            [],
+          ),
+        );
+        return;
+      }
+
+      if (options.signal?.aborted) {
+        settle(new Error('Ripgrep stream aborted.'));
+        return;
+      }
+
+      if (code === 0 || code === 1) {
+        if (remainder) {
+          options.onLines([stripCR(remainder)].filter(Boolean));
+        }
+        settle();
+        return;
+      }
+
+      settle(
+        new Error(stderr.trim() || `ripgrep exited with code ${String(code)}`),
+      );
+    });
+
+    child.on('error', (error) => {
+      if (settled) return;
+      settle(options.signal?.aborted ? new Error('Ripgrep stream aborted.') : error);
+    });
+
+    if (timeout > 0) {
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGKILL');
+      }, timeout);
+    }
+  });
+}
+
+/** Execute a ripgrep search and return the matching lines. */
 export async function executeRipgrep(
   args: string[],
   target: string,

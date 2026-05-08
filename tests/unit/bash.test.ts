@@ -112,6 +112,29 @@ describe('bash tool', () => {
     });
   });
 
+  describe('output cap', () => {
+    it('truncates model-facing output at the default cap', async () => {
+      const result = await bash.execute(
+        { command: 'node -e "process.stdout.write(\'A\'.repeat(31000))"' },
+        toolOpts,
+      );
+
+      expect(result).toContain('... [output truncated - ');
+      expect(result.length).toBeLessThan(31_000);
+    });
+
+    it('allows a larger configured output cap', async () => {
+      const customBash = createBash({ maxOutputChars: 40_000 });
+      const result = await customBash.execute(
+        { command: 'node -e "process.stdout.write(\'A\'.repeat(35000))"' },
+        toolOpts,
+      );
+
+      expect(result).not.toContain('... [output truncated - ');
+      expect(result.length).toBe(35_000);
+    });
+  });
+
   describe('error handling', () => {
     it('returns error string for invalid shell', async () => {
       const badShell = createBash({ shell: '/nonexistent/shell' });

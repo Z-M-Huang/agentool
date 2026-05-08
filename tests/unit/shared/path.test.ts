@@ -78,6 +78,12 @@ describe('toRelativePath', () => {
   it('returns an empty string for the baseDir itself', () => {
     expect(toRelativePath('/project', '/project')).toBe('');
   });
+
+  it('defaults baseDir to process.cwd() when omitted', () => {
+    expect(toRelativePath(resolve(process.cwd(), 'src/index.ts'))).toBe(
+      'src/index.ts',
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

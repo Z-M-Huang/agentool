@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createMemory, memory } from '../../src/memory/index.js';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -126,6 +126,16 @@ describe('memory tool', () => {
       const result = await memTool.execute({ action: 'list' }, toolOpts);
       expect(result).toContain('No memory entries found');
     });
+
+    it('returns no entries when the memory path cannot be listed', async () => {
+      const filePath = join(dir, 'not-a-directory');
+      await writeFile(filePath, 'content');
+      const fileBackedTool = createMemory({ memoryDir: filePath });
+
+      const result = await fileBackedTool.execute({ action: 'list' }, toolOpts);
+
+      expect(result).toContain('No memory entries found');
+    });
   });
 
   describe('write without content', () => {
@@ -174,6 +184,32 @@ describe('memory tool', () => {
         toolOpts,
       );
       expect(readResult).toBe('');
+    });
+  });
+
+  describe('write failure handling', () => {
+    it('returns an error string when the memory directory path is a file', async () => {
+      const filePath = join(dir, 'memory-file');
+      await writeFile(filePath, 'content');
+      const fileBackedTool = createMemory({ memoryDir: filePath });
+
+      const result = await fileBackedTool.execute(
+        { action: 'write', key: 'note', content: 'data' },
+        toolOpts,
+      );
+
+      expect(result).toContain('Error [memory]');
+    });
+  });
+
+  describe('unknown action fallback', () => {
+    it('returns an error for an unsupported action value', async () => {
+      const result = await memTool.execute(
+        { action: 'rename', key: 'note' } as never,
+        toolOpts,
+      );
+
+      expect(result).toContain('Unknown action "rename"');
     });
   });
 

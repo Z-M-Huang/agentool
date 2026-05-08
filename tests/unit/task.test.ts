@@ -3,7 +3,7 @@ import { createTaskCreate, taskCreate } from '../../src/task-create/index.js';
 import { createTaskGet, taskGet } from '../../src/task-get/index.js';
 import { createTaskUpdate, taskUpdate } from '../../src/task-update/index.js';
 import { createTaskList, taskList } from '../../src/task-list/index.js';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -117,6 +117,23 @@ describe('task tools', () => {
       const result = await list.execute({}, toolOpts);
       expect(result).toContain('No tasks found');
     });
+
+    it('includes owner and blocking details in summaries', async () => {
+      const createResult = await create.execute(
+        { subject: 'Listed task', description: 'Shows summary details' },
+        toolOpts,
+      );
+      const id = createResult.match(/Created task (\w+)/)![1];
+      await update.execute(
+        { taskId: id, owner: 'agent-1', addBlockedBy: ['dep-1'] },
+        toolOpts,
+      );
+
+      const result = await list.execute({}, toolOpts);
+
+      expect(result).toContain('(owner: agent-1)');
+      expect(result).toContain('[blocked by dep-1]');
+    });
   });
 
   describe('update', () => {
@@ -148,6 +165,41 @@ describe('task tools', () => {
       );
       expect(result).toContain('Owner: agent-1');
       expect(result).toContain('Active: Working on it');
+    });
+
+    it('updates subject and description', async () => {
+      const createResult = await create.execute(
+        { subject: 'Old subject', description: 'Old description' },
+        toolOpts,
+      );
+      const id = createResult.match(/Created task (\w+)/)![1];
+
+      const result = await update.execute(
+        {
+          taskId: id,
+          subject: 'New subject',
+          description: 'New description',
+        },
+        toolOpts,
+      );
+
+      expect(result).toContain('Subject: New subject');
+      expect(result).toContain('Description: New description');
+    });
+
+    it('creates metadata when the existing task has none', async () => {
+      const createResult = await create.execute(
+        { subject: 'No metadata', description: 'Will get metadata' },
+        toolOpts,
+      );
+      const id = createResult.match(/Created task (\w+)/)![1];
+
+      const result = await update.execute(
+        { taskId: id, metadata: { priority: 'low' } },
+        toolOpts,
+      );
+
+      expect(result).toContain('"priority":"low"');
     });
 
     it('merges metadata (null deletes key)', async () => {
@@ -207,6 +259,54 @@ describe('task tools', () => {
       );
       expect(result).toContain('Error [task-get]');
       expect(result).toContain('not found');
+    });
+  });
+
+  describe('malformed task store handling', () => {
+    it('returns a create error when the task file path is a directory', async () => {
+      const badCreate = createTaskCreate({ tasksFile: dir });
+      const result = await badCreate.execute(
+        { subject: 'Bad path', description: 'Cannot save' },
+        toolOpts,
+      );
+
+      expect(result).toContain('Error [task-create]');
+    });
+
+    it('returns a get error when stored task data is malformed', async () => {
+      await writeFile(
+        tasksFile,
+        JSON.stringify([{ id: 'bad', subject: 'Bad task' }]),
+      );
+
+      const result = await get.execute({ taskId: 'bad' }, toolOpts);
+
+      expect(result).toContain('Error [task-get]');
+    });
+
+    it('returns a list error when summary formatting fails', async () => {
+      await writeFile(
+        tasksFile,
+        JSON.stringify([{ id: 'bad', status: 'pending', subject: 'Bad task' }]),
+      );
+
+      const result = await list.execute({}, toolOpts);
+
+      expect(result).toContain('Error [task-list]');
+    });
+
+    it('returns an update error when updated malformed data cannot be formatted', async () => {
+      await writeFile(
+        tasksFile,
+        JSON.stringify([{ id: 'bad', status: 'pending', subject: 'Bad task' }]),
+      );
+
+      const result = await update.execute(
+        { taskId: 'bad', status: 'completed' },
+        toolOpts,
+      );
+
+      expect(result).toContain('Error [task-update]');
     });
   });
 

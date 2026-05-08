@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { executeShell } from '../../../src/shared/shell.js';
+import {
+  DEFAULT_SHELL_OUTPUT_CHARS,
+  MAX_SHELL_OUTPUT_CHARS,
+  executeShell,
+  resolveShellOutputChars,
+  truncateShellOutput,
+} from '../../../src/shared/shell.js';
 import type { ShellResult, ShellOptions } from '../../../src/shared/shell.js';
 
 describe('executeShell', () => {
@@ -128,5 +134,20 @@ describe('executeShell', () => {
     // SIGHUP gives exit code 129 in most shells, but spawn returns it as code=null, signal='SIGHUP' -> 1
     // Or the shell may handle it differently. Either way, the process should complete.
     expect(result.exitCode).not.toBe(0);
+  });
+});
+
+describe('shell output helpers', () => {
+  it('resolves the Claude Code parity default output cap', () => {
+    expect(resolveShellOutputChars()).toBe(DEFAULT_SHELL_OUTPUT_CHARS);
+  });
+
+  it('caps configured output length at the upper bound', () => {
+    expect(resolveShellOutputChars(999_999)).toBe(MAX_SHELL_OUTPUT_CHARS);
+  });
+
+  it('adds a truncation marker when output exceeds the cap', () => {
+    const result = truncateShellOutput('abcdef', 3);
+    expect(result).toBe('abc\n... [output truncated - 3 chars removed]');
   });
 });

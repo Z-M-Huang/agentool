@@ -47,7 +47,7 @@ describe('glob tool', () => {
   });
 
   describe.skipIf(!hasRg)('with ripgrep', () => {
-    it('finds .ts files and returns absolute paths', async () => {
+    it('finds .ts files and returns relative paths by default', async () => {
       const globTool = createGlob({ cwd: fixtureDir });
       const result = await globTool.execute(
         { pattern: '**/*.ts' },
@@ -55,13 +55,26 @@ describe('glob tool', () => {
       );
 
       expect(result).toContain('Found 2 files');
-      // Paths must be absolute
+      const lines = result.split('\n').slice(1);
+      for (const line of lines) {
+        expect(line.startsWith('/')).toBe(false);
+      }
+      expect(result).toContain('index.ts');
+      expect(result).toContain('utils.ts');
+    });
+
+    it('returns absolute paths when pathStyle is absolute', async () => {
+      const globTool = createGlob({ cwd: fixtureDir, pathStyle: 'absolute' });
+      const result = await globTool.execute(
+        { pattern: '**/*.ts' },
+        toolOpts,
+      );
+
+      expect(result).toContain('Found 2 files');
       const lines = result.split('\n').slice(1);
       for (const line of lines) {
         expect(line.startsWith('/')).toBe(true);
       }
-      expect(result).toContain('index.ts');
-      expect(result).toContain('utils.ts');
     });
 
     it('returns "No files found" for no matches', async () => {

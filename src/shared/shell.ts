@@ -3,6 +3,12 @@ import { spawn } from 'child_process';
 /** Maximum bytes collected per stream (stdout/stderr) to prevent OOM. */
 const MAX_BUFFER_BYTES = 10 * 1024 * 1024; // 10 MB
 
+/** Default model-facing output cap, matching Claude Code's Bash output default. */
+export const DEFAULT_SHELL_OUTPUT_CHARS = 30_000;
+
+/** Maximum configurable model-facing output cap, matching Claude Code's upper bound. */
+export const MAX_SHELL_OUTPUT_CHARS = 150_000;
+
 /** Default command timeout in milliseconds (2 minutes). */
 const DEFAULT_TIMEOUT_MS = 120_000;
 
@@ -34,6 +40,34 @@ export interface ShellOptions {
   shell?: string;
   /** Abort signal to cancel the running command. */
   signal?: AbortSignal;
+}
+
+/**
+ * Resolve a requested model-facing output cap.
+ *
+ * Invalid values fall back to the default. Values above the Claude Code
+ * parity upper bound are capped.
+ */
+export function resolveShellOutputChars(value?: number): number {
+  if (value === undefined || !Number.isFinite(value) || value <= 0) {
+    return DEFAULT_SHELL_OUTPUT_CHARS;
+  }
+  return Math.min(Math.floor(value), MAX_SHELL_OUTPUT_CHARS);
+}
+
+/**
+ * Truncate model-facing shell output while preserving the start of the output.
+ */
+export function truncateShellOutput(
+  output: string,
+  maxOutputChars: number = DEFAULT_SHELL_OUTPUT_CHARS,
+): string {
+  if (output.length <= maxOutputChars) {
+    return output;
+  }
+
+  const omitted = output.length - maxOutputChars;
+  return `${output.slice(0, maxOutputChars)}\n... [output truncated - ${omitted} chars removed]`;
 }
 
 /**

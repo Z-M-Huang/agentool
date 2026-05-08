@@ -227,6 +227,14 @@ describe('lsp tool', () => {
       expect(result).toBeDefined();
     }, 15000);
 
+    it('passes unknown operation strings through as JSON-RPC methods', async () => {
+      const serverConfig: LspServerConfig = { command: process.execPath, args: [MOCK_LSP_SERVER] };
+      const result = await executeLspOperation(serverConfig, {
+        operation: 'custom/method', filePath: 'test.ts', line: 0, character: 0, cwd: testCwd,
+      }, 10000);
+      expect(result).toBe('null');
+    }, 15000);
+
     it('performs incomingCalls via prepareCallHierarchy + callHierarchy/incomingCalls', async () => {
       const serverConfig: LspServerConfig = { command: process.execPath, args: [MOCK_LSP_SERVER] };
       const result = await executeLspOperation(serverConfig, {

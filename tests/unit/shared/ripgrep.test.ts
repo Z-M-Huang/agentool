@@ -5,6 +5,7 @@ import {
   RipgrepNotFoundError,
   RipgrepTimeoutError,
   executeRipgrep,
+  executeRipgrepStream,
 } from '../../../src/shared/ripgrep.js';
 import { execFileSync } from 'node:child_process';
 import * as path from 'node:path';
@@ -259,6 +260,71 @@ describe.skipIf(!rgAvailable)('executeRipgrep edge cases', () => {
     );
     for (const line of results) {
       expect(line.endsWith('\r')).toBe(false);
+    }
+  });
+});
+
+describe.skipIf(!rgAvailable)('executeRipgrepStream', () => {
+  let tmpDir: string;
+
+  const setup = () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentool-rg-stream-'));
+    fs.writeFileSync(
+      path.join(tmpDir, 'sample.txt'),
+      'alpha\nbeta\r\ngamma\n',
+    );
+  };
+
+  const cleanup = () => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  };
+
+  it('streams matching lines as they arrive', async () => {
+    setup();
+    try {
+      const lines: string[] = [];
+      await executeRipgrepStream(['--no-filename', 'a'], tmpDir, {
+        onLines: (chunk) => lines.push(...chunk),
+      });
+
+      expect(lines).toContain('alpha');
+      expect(lines).toContain('gamma');
+      for (const line of lines) {
+        expect(line.endsWith('\r')).toBe(false);
+      }
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('resolves without lines when no matches are found', async () => {
+    setup();
+    try {
+      const lines: string[] = [];
+      await executeRipgrepStream(['--no-filename', 'not-present'], tmpDir, {
+        onLines: (chunk) => lines.push(...chunk),
+      });
+
+      expect(lines).toEqual([]);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('rejects when aborted', async () => {
+    setup();
+    try {
+      const controller = new AbortController();
+      controller.abort();
+
+      await expect(
+        executeRipgrepStream(['--no-filename', 'a'], tmpDir, {
+          signal: controller.signal,
+          onLines: () => {},
+        }),
+      ).rejects.toThrow(/aborted/);
+    } finally {
+      cleanup();
     }
   });
 });

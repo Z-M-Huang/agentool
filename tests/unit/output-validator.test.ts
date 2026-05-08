@@ -172,6 +172,62 @@ describe('output-validator tool', () => {
         schemaId: 'new-turn',
       });
     });
+
+    it('uses schema title as the schema id when schemaId is omitted', async () => {
+      const tool = createOutputValidator({
+        schema: {
+          title: 'answer-title',
+          type: 'object',
+        },
+      });
+      const raw = await tool.execute({ content: '{}' }, toolOpts);
+
+      expect(parseResult(raw)).toMatchObject({
+        valid: true,
+        schemaId: 'answer-title',
+      });
+    });
+
+    it('formats nested required-property paths as JSON pointers', async () => {
+      const tool = createOutputValidator({
+        schema: {
+          type: 'object',
+          required: ['parent'],
+          properties: {
+            parent: {
+              type: 'object',
+              required: ['a/b~c'],
+              properties: {
+                'a/b~c': { type: 'string' },
+              },
+            },
+          },
+        },
+      });
+      const raw = await tool.execute(
+        { content: '{"parent":{}}' },
+        toolOpts,
+      );
+
+      expect(parseResult(raw).errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: '/parent/a~1b~0c',
+            keyword: 'required',
+          }),
+        ]),
+      );
+    });
+
+    it('validates boolean schemas without a schema label', async () => {
+      const tool = createOutputValidator({ schema: true });
+      const raw = await tool.execute({ content: '123' }, toolOpts);
+      const result = parseResult(raw);
+
+      expect(result.valid).toBe(true);
+      expect(result.schemaId).toBeUndefined();
+      expect(result.schemaHash).toMatch(/^[a-f0-9]{12}$/);
+    });
   });
 
   describe('configuration errors', () => {
@@ -197,6 +253,20 @@ describe('output-validator tool', () => {
       expect(raw).toContain('Error [output-validator]: Invalid configured schema');
     });
 
+    it('returns an error and omits the hash when schema hashing fails', async () => {
+      const circular: Record<string, unknown> = { type: 'object' };
+      circular.self = circular;
+      const tool = createOutputValidator({
+        schema: circular as unknown as JsonSchema,
+      });
+      const raw = await tool.execute(
+        { content: '{}' },
+        toolOpts,
+      );
+
+      expect(raw).toContain('Error [output-validator]: Invalid configured schema');
+    });
+
     it('returns an error when the configured schema is async', async () => {
       const asyncSchema = {
         $async: true,
@@ -209,6 +279,29 @@ describe('output-validator tool', () => {
       );
 
       expect(raw).toContain('Async JSON Schemas are not supported');
+    });
+
+    it('returns an error when schema validation throws at runtime', async () => {
+      const tool = createOutputValidator({
+        schema: {
+          type: 'string',
+          format: 'throws-at-runtime',
+        },
+        ajvOptions: {
+          formats: {
+            'throws-at-runtime': {
+              type: 'string',
+              validate: () => {
+                throw new Error('format boom');
+              },
+            },
+          },
+        },
+      });
+
+      const raw = await tool.execute({ content: '"value"' }, toolOpts);
+
+      expect(raw).toContain('Error [output-validator]: format boom');
     });
   });
 });
