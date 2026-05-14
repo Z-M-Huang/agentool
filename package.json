@@ -1,6 +1,6 @@
 {
   "name": "agentool",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "type": "module",
   "description": "22 AI agent tools + context-compaction helper as standalone Vercel AI SDK modules",
   "author": "Z-M-Huang",

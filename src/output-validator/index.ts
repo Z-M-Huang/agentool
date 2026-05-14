@@ -3,6 +3,12 @@ import { tool } from 'ai';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { extractErrorMessage } from '../shared/errors.js';
+import {
+  getContentInput,
+  invalidToolInputFallback,
+  parseJsonContent,
+  type OutputValidatorToolInput,
+} from './content.js';
 import { getPrompt } from './prompt.js';
 
 export { getPrompt as outputValidatorPrompt } from './prompt.js';
@@ -83,12 +89,15 @@ export function createOutputValidator(config: OutputValidatorConfig = {}) {
 
   return tool({
     description: config.description ?? getPrompt({ schemaId }),
-    inputSchema: z.object({
-      content: z
-        .string()
-        .describe('Exact final JSON response text to validate'),
-    }),
-    execute: async ({ content }) => {
+    inputSchema: z
+      .object({
+        content: z
+          .string()
+          .min(1)
+          .describe('Exact final JSON response text to validate'),
+      })
+      .catch(invalidToolInputFallback),
+    execute: async (input) => {
       try {
         if (config.schema === undefined) {
           return 'Error [output-validator]: No schema configured. Provide a schema via createOutputValidator({ schema }).';
@@ -98,7 +107,20 @@ export function createOutputValidator(config: OutputValidatorConfig = {}) {
           return `Error [output-validator]: Invalid configured schema: ${compiled.error}`;
         }
 
-        const parsed = parseJsonContent(content, schemaId, schemaHash);
+        const contentInput = getContentInput(
+          input as OutputValidatorToolInput,
+          schemaId,
+          schemaHash,
+        );
+        if (!contentInput.ok) {
+          return stringifyResult(contentInput.result);
+        }
+
+        const parsed = parseJsonContent(
+          contentInput.content,
+          schemaId,
+          schemaHash,
+        );
         if (!parsed.ok) {
           return stringifyResult(parsed.result);
         }
@@ -117,6 +139,8 @@ export function createOutputValidator(config: OutputValidatorConfig = {}) {
           valid: false,
           schemaId,
           schemaHash,
+          message:
+            'Output does not match the configured schema. Revise the JSON to address every error, then call output_validator again with the corrected full JSON document as the content string.',
           errors: formatAjvErrors(compiled.validate.errors),
         });
       } catch (error: unknown) {
@@ -137,10 +161,6 @@ type CompileResult =
   | { validate: Validator; error?: never }
   | { validate?: never; error: string };
 
-type ParseResult =
-  | { ok: true; value: unknown }
-  | { ok: false; result: OutputValidationResult };
-
 function compileSchema(config: OutputValidatorConfig): CompileResult {
   if (config.schema === undefined) {
     return { error: 'No schema configured.' };
@@ -160,33 +180,6 @@ function compileSchema(config: OutputValidatorConfig): CompileResult {
     return { validate };
   } catch (error: unknown) {
     return { error: extractErrorMessage(error) };
-  }
-}
-
-function parseJsonContent(
-  content: string,
-  schemaId: string | undefined,
-  schemaHash: string | undefined,
-): ParseResult {
-  try {
-    return { ok: true, value: JSON.parse(content) as unknown };
-  } catch (error: unknown) {
-    const msg = extractErrorMessage(error);
-    return {
-      ok: false,
-      result: {
-        valid: false,
-        schemaId,
-        schemaHash,
-        errors: [
-          {
-            path: '/',
-            message: `Content is not valid JSON: ${msg}`,
-            keyword: 'parse',
-          },
-        ],
-      },
-    };
   }
 }
 

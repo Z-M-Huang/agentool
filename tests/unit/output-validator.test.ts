@@ -139,6 +139,67 @@ describe('output-validator tool', () => {
       ]);
     });
 
+    it('returns a corrective error when the tool call omits content', async () => {
+      const tool = createOutputValidator({ schemaId: 'answer-v1', schema });
+      const parsedInput = tool.inputSchema.safeParse({});
+      expect(parsedInput.success).toBe(true);
+      if (!parsedInput.success) {
+        throw new Error(parsedInput.error.message);
+      }
+
+      const raw = await tool.execute(parsedInput.data, toolOpts);
+      const result = parseResult(raw);
+
+      expect(result).toMatchObject({
+        valid: false,
+        schemaId: 'answer-v1',
+        message: expect.stringContaining('content string'),
+      });
+      expect(result.errors).toEqual([
+        expect.objectContaining({
+          path: '/content',
+          keyword: 'required',
+          message: expect.stringContaining('output_validator'),
+        }),
+      ]);
+    });
+
+    it('returns a corrective error when content is not a string', async () => {
+      const tool = createOutputValidator({ schemaId: 'answer-v1', schema });
+      const raw = await tool.execute({ content: 123 } as never, toolOpts);
+      const result = parseResult(raw);
+
+      expect(result).toMatchObject({
+        valid: false,
+        schemaId: 'answer-v1',
+        message: expect.stringContaining('content string'),
+      });
+      expect(result.errors).toEqual([
+        expect.objectContaining({
+          path: '/content',
+          keyword: 'type',
+        }),
+      ]);
+    });
+
+    it('returns a corrective error when content is blank', async () => {
+      const tool = createOutputValidator({ schemaId: 'answer-v1', schema });
+      const raw = await tool.execute({ content: '   ' }, toolOpts);
+      const result = parseResult(raw);
+
+      expect(result).toMatchObject({
+        valid: false,
+        schemaId: 'answer-v1',
+        message: expect.stringContaining('content string'),
+      });
+      expect(result.errors).toEqual([
+        expect.objectContaining({
+          path: '/content',
+          keyword: 'minLength',
+        }),
+      ]);
+    });
+
     it('does not carry an old schema into a new validator instance', async () => {
       const oldTool = createOutputValidator({
         schemaId: 'old-turn',

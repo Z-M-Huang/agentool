@@ -24,7 +24,8 @@ ${schemaLine}
 
 ## Usage Guidelines
 - Call this tool before the final answer whenever structured output validation is required for the current turn.
-- Pass the exact final JSON response text in the content parameter.
+- Pass exactly one argument object with the exact final JSON response text in the content parameter: {"content":"<full JSON document as a string>"}.
+- Do not call this tool with {}, and do not put the JSON document outside the content parameter.
 - If validation fails, revise the response to address every returned error and validate again.
 - Only return the final answer after this tool reports valid: true.
 - The configured schema may change between turns, so rely on the current tool instance and result schema id/hash.`;
