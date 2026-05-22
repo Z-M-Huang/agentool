@@ -7,9 +7,9 @@
   <p>
   <a href="https://www.npmjs.com/package/agentool"><img src="https://img.shields.io/npm/v/agentool?style=flat-square&color=cb3837&logo=npm" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/agentool"><img src="https://img.shields.io/npm/dm/agentool?style=flat-square&color=cb3837&logo=npm" alt="npm downloads" /></a>
-  <a href="https://github.com/Z-M-Huang/agentool"><img src="https://img.shields.io/github/stars/Z-M-Huang/agentool?style=flat-square&logo=github" alt="GitHub stars" /></a>
-  <a href="https://github.com/Z-M-Huang/agentool/issues"><img src="https://img.shields.io/github/issues/Z-M-Huang/agentool?style=flat-square&logo=github" alt="GitHub issues" /></a>
-  <a href="https://github.com/Z-M-Huang/agentool/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Z-M-Huang/agentool?style=flat-square" alt="License" /></a>
+  <a href="https://github.com/markhuangai/agentool"><img src="https://img.shields.io/github/stars/markhuangai/agentool?style=flat-square&logo=github" alt="GitHub stars" /></a>
+  <a href="https://github.com/markhuangai/agentool/issues"><img src="https://img.shields.io/github/issues/markhuangai/agentool?style=flat-square&logo=github" alt="GitHub issues" /></a>
+  <a href="https://github.com/markhuangai/agentool/blob/main/LICENSE"><img src="https://img.shields.io/github/license/markhuangai/agentool?style=flat-square" alt="License" /></a>
   </p>
   <p>
   <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js" />
@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/Vercel%20AI%20SDK-v5%2B-000000?style=flat-square&logo=vercel&logoColor=white" alt="Vercel AI SDK" />
   <img src="https://img.shields.io/badge/ESM%20%2B%20CJS-supported-22c55e?style=flat-square" alt="ESM + CJS" />
   <img src="https://img.shields.io/badge/coverage-96%25-brightgreen?style=flat-square" alt="Test Coverage" />
-  <img src="https://visitor-badge.laobi.icu/badge?page_id=Z-M-Huang.agentool&style=flat-square" alt="Visitors" />
+  <img src="https://komarev.com/ghpvc/?username=markhuangai&repo=agentool&style=flat-square&label=Visitors" alt="Visitors" />
   </p>
 </div>
 

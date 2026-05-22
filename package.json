@@ -7,11 +7,11 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Z-M-Huang/agentool.git"
+    "url": "git+https://github.com/markhuangai/agentool.git"
   },
-  "homepage": "https://github.com/Z-M-Huang/agentool#readme",
+  "homepage": "https://github.com/markhuangai/agentool#readme",
   "bugs": {
-    "url": "https://github.com/Z-M-Huang/agentool/issues"
+    "url": "https://github.com/markhuangai/agentool/issues"
   },
   "keywords": [
     "ai",
