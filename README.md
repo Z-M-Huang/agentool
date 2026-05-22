@@ -2,7 +2,7 @@
 
 # agentool
 
-**22 AI agent tools + context-compaction helper for the [Vercel AI SDK](https://sdk.vercel.ai/).**
+**23 AI agent tools + context-compaction helper for the [Vercel AI SDK](https://sdk.vercel.ai/).**
 
   <p>
   <a href="https://www.npmjs.com/package/agentool"><img src="https://img.shields.io/npm/v/agentool?style=flat-square&color=cb3837&logo=npm" alt="npm version" /></a>
@@ -27,7 +27,7 @@ File operations, shell execution, code search, web fetching, and more -- everyth
 
 ## Features
 
-- **22 production-ready tools** -- bash, grep, glob, read, edit, write, web-fetch, web-search, tool-search, output-validator, memory, multi-edit, diff, task-create, task-get, task-update, task-list, lsp, http-request, ask-user, sleep
+- **23 production-ready tools** -- bash, grep, glob, read, edit, write, web-fetch, web-search, tool-search, output-validator, memory, multi-edit, diff, task-create, task-get, task-update, task-list, lsp, http-request, ask-user, sleep, agent
 - **Context-compaction middleware** -- transparent prompt compaction via `wrapLanguageModel()`, preserves system messages and recent turns
 - **Vercel AI SDK compatible** -- works with `generateText()`, `streamText()`, and any AI SDK provider (OpenAI, Anthropic, Google, etc.)
 - **Factory + default pattern** -- `createBash({ cwd: '/my/project' })` for custom config, or just use `bash` with zero config
@@ -734,6 +734,48 @@ const result = await sleep.execute(
 
 **Parameters:** `durationMs` (number, max 300000), `reason?` (string)
 
+---
+
+### agent
+
+Spawn and manage parallel subagents from an orchestrator session.
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { bash, grep, read } from 'agentool';
+import { createAgent } from 'agentool/agent';
+
+const agentTool = createAgent({
+  model: openai('gpt-4o'),
+  tools: { bash, grep, read },
+  agents: {
+    explorer: {
+      description: 'Explore one focused area of the codebase',
+      systemPrompt: 'You are a focused exploration subagent. Report findings with file references.',
+    },
+  },
+});
+
+const started = await agentTool.execute(
+  {
+    action: 'start',
+    agent: 'explorer',
+    prompt: 'Inspect src/auth and summarize the login flow',
+    description: 'auth flow',
+  },
+  { toolCallId: 'id', messages: [] },
+);
+
+const finished = await agentTool.execute(
+  { action: 'wait', mode: 'all', timeoutMs: 60000 },
+  { toolCallId: 'id', messages: [] },
+);
+```
+
+**Parameters:** `action` (`start`, `wait`, `status`, `result`, `list`, `stop`), plus action-specific fields.
+
+Subagents do not receive the `agent` tool recursively, even if it is present in the configured toolset.
+
 ## Configuration
 
 Every tool follows the **factory + default** pattern:
@@ -784,6 +826,7 @@ Tools that support timeouts extend `TimeoutConfig`:
 | `web-fetch` | `maxContentLength?: number`, `userAgent?: string` |
 | `ask-user` | `onQuestion?: (question, options?) => Promise<string>` |
 | `sleep` | `maxDuration?: number` -- cap in ms (default: 300000) |
+| `agent` | `model?: LanguageModel`, `tools?: ToolSet`, `agents?: Record<string, ManagedAgentDefinition>`, `maxConcurrent?: number` |
 
 ## Error Handling
 
@@ -827,6 +870,7 @@ import {
   compactMessages,  // helper function, not a tool
   askUser, createAskUser,
   sleep, createSleep,
+  agent, createAgent,
 } from 'agentool';
 ```
 
@@ -855,6 +899,7 @@ import { lsp } from 'agentool/lsp';
 import { compactMessages } from 'agentool/context-compaction'; // helper function
 import { askUser } from 'agentool/ask-user';
 import { sleep } from 'agentool/sleep';
+import { agent } from 'agentool/agent';
 ```
 
 ## Full Example: AI Coding Agent

@@ -1,8 +1,8 @@
 {
   "name": "agentool",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "type": "module",
-  "description": "22 AI agent tools + context-compaction helper as standalone Vercel AI SDK modules",
+  "description": "23 AI agent tools + context-compaction helper as standalone Vercel AI SDK modules",
   "author": "Z-M-Huang",
   "license": "Apache-2.0",
   "repository": {
@@ -148,6 +148,11 @@
       "types": "./dist/sleep/index.d.ts",
       "import": "./dist/sleep/index.js",
       "require": "./dist/sleep/index.cjs"
+    },
+    "./agent": {
+      "types": "./dist/agent/index.d.ts",
+      "import": "./dist/agent/index.js",
+      "require": "./dist/agent/index.cjs"
     }
   },
   "scripts": {

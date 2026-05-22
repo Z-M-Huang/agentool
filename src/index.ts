@@ -75,5 +75,12 @@ export type { AskUserConfig } from './ask-user/index.js';
 export { createSleep, sleep, sleepPrompt } from './sleep/index.js';
 export type { SleepConfig } from './sleep/index.js';
 
+export { createAgent, agent, agentPrompt } from './agent/index.js';
+export type {
+  AgentConfig,
+  AgentTaskStatus,
+  ManagedAgentDefinition,
+} from './agent/index.js';
+
 // Shared types
 export type { BaseToolConfig, TimeoutConfig, ToolResult } from './shared/types.js';

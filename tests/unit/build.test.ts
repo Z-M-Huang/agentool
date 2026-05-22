@@ -22,7 +22,7 @@ describe('build verification', () => {
     'memory', 'multi-edit', 'diff', 'task-create', 'task-get',
     'task-update', 'task-list', 'web-search', 'tool-search',
     'lsp', 'http-request', 'output-validator', 'context-compaction',
-    'ask-user', 'sleep'
+    'ask-user', 'sleep', 'agent'
   ];
 
   it('root entry point has ESM, CJS, and DTS', () => {
@@ -39,14 +39,16 @@ describe('build verification', () => {
     });
   }
 
-  it('23 entry points total', () => {
+  it('24 entry points total', () => {
     const dirs = tools.length + 1; // tools + root
-    expect(dirs).toBe(23);
+    expect(dirs).toBe(24);
   });
 
   it('ESM import resolves for root', async () => {
     const m = await import('../../dist/index.js');
     expect(Object.keys(m).length).toBeGreaterThanOrEqual(32);
+    expect(m.createAgent).toBeDefined();
+    expect(m.agent).toBeDefined();
   }, 10_000);
 
   it('ai and zod not bundled in dist', () => {
@@ -60,5 +62,9 @@ describe('build verification', () => {
     const grep = await import('../../dist/grep/index.js');
     expect(grep.createGrep).toBeDefined();
     expect(grep.grep).toBeDefined();
+
+    const agent = await import('../../dist/agent/index.js');
+    expect(agent.createAgent).toBeDefined();
+    expect(agent.agent).toBeDefined();
   });
 });

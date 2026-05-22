@@ -25,6 +25,7 @@ export default defineConfig({
     'context-compaction/index': 'src/middleware/context-compaction/index.ts',
     'ask-user/index': 'src/ask-user/index.ts',
     'sleep/index': 'src/sleep/index.ts',
+    'agent/index': 'src/agent/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,
