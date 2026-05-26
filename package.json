@@ -1,6 +1,6 @@
 {
   "name": "agentool",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "type": "module",
   "description": "23 AI agent tools + context-compaction helper as standalone Vercel AI SDK modules",
   "author": "Z-M-Huang",
@@ -161,6 +161,7 @@
     "test": "vitest run --project unit",
     "test:coverage": "vitest run --project unit --exclude tests/unit/build.test.ts --coverage",
     "test:functional": "vitest run --project functional",
+    "test:provider-compat": "vitest run --project functional tests/functional/provider-compat.functional.test.ts",
     "lint": "eslint src/",
     "precommit": "npm run lint && npm run typecheck && npm run test:coverage"
   },
@@ -182,6 +183,7 @@
     "turndown": "^7.2.0"
   },
   "devDependencies": {
+    "@ai-sdk/anthropic": "^3.0.79",
     "@ai-sdk/openai": "^3.0.50",
     "@types/diff": "^7.0.0",
     "@types/node": "^22.0.0",

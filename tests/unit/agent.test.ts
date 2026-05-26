@@ -3,7 +3,7 @@ import type {
   LanguageModelV3CallOptions,
   LanguageModelV3GenerateResult,
 } from '@ai-sdk/provider';
-import { tool as createTool } from 'ai';
+import { asSchema, tool as createTool } from 'ai';
 import type { LanguageModel } from 'ai';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -74,6 +74,16 @@ describe('agent tool', () => {
     expect(typeof agent.execute).toBe('function');
     expect(agent.inputSchema).toBeDefined();
     expect(typeof agent.description).toBe('string');
+  });
+
+  it('emits an Anthropic-compatible object input schema', async () => {
+    const jsonSchema = await asSchema(agent.inputSchema).jsonSchema;
+
+    expect(jsonSchema.type).toBe('object');
+    expect(jsonSchema.anyOf).toBeUndefined();
+    expect(jsonSchema.oneOf).toBeUndefined();
+    expect(jsonSchema.allOf).toBeUndefined();
+    expect(jsonSchema.required).toEqual(['action']);
   });
 
   it('starts a task and returns its result after wait', async () => {
