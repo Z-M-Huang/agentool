@@ -826,7 +826,7 @@ Tools that support timeouts extend `TimeoutConfig`:
 | `task-list` | `tasksFile?: string` -- JSON file path |
 | `web-search` | `onSearch?: (query, opts) => Promise<string>` -- search callback |
 | `tool-search` | `tools?: Record<string, { description }>` -- tool registry |
-| `output-validator` | `schema?: JsonSchema`, `schemaId?: string`, `ajvOptions?: Record<string, unknown>` |
+| `output-validator` | `schema?: JsonSchema`, `schemaId?: string`, `ajvOptions?: Record<string, unknown>`, `description?: string`, `example?: JsonSchemaValue`, `errorMode?: 'all' \| 'first-per-path' \| 'first'` |
 | `lsp` | `servers?: Record<string, LspServerConfig>` -- LSP servers by file extension |
 | `http-request` | `defaultHeaders?: Record<string, string>` -- headers merged into every request |
 | `web-fetch` | `maxContentLength?: number`, `userAgent?: string` |
