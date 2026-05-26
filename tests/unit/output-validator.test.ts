@@ -82,6 +82,77 @@ describe('output-validator tool', () => {
       );
     });
 
+    it('includes the JSON-stringified value at the failing instance path', async () => {
+      const tool = createOutputValidator({
+        schemaId: 'acceptance-v1',
+        schema: {
+          type: 'object',
+          required: ['canonical_acceptance_criteria'],
+          properties: {
+            canonical_acceptance_criteria: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['visibility'],
+                properties: {
+                  visibility: {
+                    type: 'object',
+                    required: ['initial_state'],
+                    properties: {
+                      initial_state: { type: 'string' },
+                      trigger_selector: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const raw = await tool.execute(
+        {
+          content: JSON.stringify({
+            canonical_acceptance_criteria: [{
+              visibility: { trigger_selector: '.foo' },
+            }],
+          }),
+        },
+        toolOpts,
+      );
+      const result = parseResult(raw);
+      const error = result.errors?.find(({ path }) =>
+        path === '/canonical_acceptance_criteria/0/visibility/initial_state'
+      );
+
+      expect(error).toMatchObject({
+        keyword: 'required',
+        instanceValue: '{"trigger_selector":".foo"}',
+      });
+    });
+
+    it('truncates long instance values', async () => {
+      const tool = createOutputValidator({
+        schema: {
+          type: 'object',
+          required: ['text'],
+          properties: {
+            text: { type: 'string', maxLength: 5 },
+          },
+        },
+      });
+
+      const raw = await tool.execute(
+        { content: JSON.stringify({ text: 'x'.repeat(300) }) },
+        toolOpts,
+      );
+      const result = parseResult(raw);
+      const error = result.errors?.find(({ path }) => path === '/text');
+
+      expect(error?.instanceValue).toHaveLength(200);
+      expect(error?.instanceValue?.endsWith('...')).toBe(true);
+    });
+
     it('validates string enum properties', async () => {
       const enumSchema: JsonSchema = {
         type: 'object',
@@ -120,6 +191,234 @@ describe('output-validator tool', () => {
           }),
         ]),
       );
+    });
+
+    it('collapses anyOf branch cascades to the branch selected by a const discriminator', async () => {
+      const tool = createOutputValidator({
+        schema: {
+          type: 'object',
+          properties: {
+            item: {
+              anyOf: [
+                {
+                  type: 'object',
+                  required: ['kind', 'a'],
+                  properties: {
+                    kind: { const: 'alpha' },
+                    a: { type: 'string' },
+                  },
+                  additionalProperties: false,
+                },
+                {
+                  type: 'object',
+                  required: ['kind', 'b'],
+                  properties: {
+                    kind: { const: 'beta' },
+                    b: { type: 'number' },
+                  },
+                  additionalProperties: false,
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const raw = await tool.execute(
+        { content: JSON.stringify({ item: { kind: 'alpha', b: 'bad' } }) },
+        toolOpts,
+      );
+      const result = parseResult(raw);
+      const errors = result.errors ?? [];
+
+      expect(errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: '/item/a',
+            keyword: 'required',
+          }),
+          expect.objectContaining({
+            path: '/item',
+            keyword: 'anyOf',
+          }),
+        ]),
+      );
+      expect(errors.some((error) =>
+        error.schemaPath?.includes('/anyOf/1/')
+      )).toBe(false);
+    });
+
+    it('collapses anyOf branch cascades to the branch with the fewest errors', async () => {
+      const tool = createOutputValidator({
+        schema: {
+          type: 'object',
+          properties: {
+            item: {
+              anyOf: [
+                {
+                  type: 'object',
+                  required: ['a'],
+                  properties: { a: { type: 'string' } },
+                },
+                {
+                  type: 'object',
+                  required: ['b', 'c'],
+                  properties: {
+                    b: { type: 'string' },
+                    c: { type: 'string' },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const raw = await tool.execute(
+        { content: JSON.stringify({ item: {} }) },
+        toolOpts,
+      );
+      const result = parseResult(raw);
+      const paths = result.errors?.map((error) => error.path) ?? [];
+
+      expect(paths).toContain('/item/a');
+      expect(paths).toContain('/item');
+      expect(paths).not.toContain('/item/b');
+      expect(paths).not.toContain('/item/c');
+    });
+
+    it('auto-enables Ajv discriminator support when a schema declares one next to oneOf', async () => {
+      const tool = createOutputValidator({
+        schema: {
+          type: 'object',
+          properties: {
+            item: {
+              discriminator: { propertyName: 'kind' },
+              oneOf: [
+                {
+                  type: 'object',
+                  required: ['kind', 'a'],
+                  properties: {
+                    kind: { const: 'alpha' },
+                    a: { type: 'string' },
+                  },
+                  additionalProperties: false,
+                },
+                {
+                  type: 'object',
+                  required: ['kind', 'b'],
+                  properties: {
+                    kind: { const: 'beta' },
+                    b: { type: 'number' },
+                  },
+                  additionalProperties: false,
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const raw = await tool.execute(
+        { content: JSON.stringify({ item: { kind: 'alpha', b: 'bad' } }) },
+        toolOpts,
+      );
+      const result = parseResult(raw);
+      const errors = result.errors ?? [];
+
+      expect(errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: '/item/a',
+            keyword: 'required',
+          }),
+        ]),
+      );
+      expect(errors.some((error) => error.keyword === 'oneOf')).toBe(false);
+      expect(errors.some((error) =>
+        error.schemaPath?.includes('/oneOf/1/')
+      )).toBe(false);
+    });
+
+    it('deduplicates to the first error per formatted path by default', async () => {
+      const tool = createOutputValidator({
+        schema: {
+          type: 'object',
+          required: ['name'],
+          properties: {
+            name: {
+              type: 'string',
+              minLength: 2,
+              pattern: '^[A-Z]+$',
+            },
+          },
+        },
+      });
+
+      const raw = await tool.execute(
+        { content: JSON.stringify({ name: '' }) },
+        toolOpts,
+      );
+      const result = parseResult(raw);
+      const nameErrors = result.errors?.filter(({ path }) => path === '/name');
+
+      expect(nameErrors).toHaveLength(1);
+    });
+
+    it('keeps separate missing-property errors because required paths are formatted', async () => {
+      const tool = createOutputValidator({
+        schema: {
+          type: 'object',
+          required: ['a', 'b'],
+          properties: {
+            a: { type: 'string' },
+            b: { type: 'string' },
+          },
+        },
+      });
+
+      const raw = await tool.execute({ content: '{}' }, toolOpts);
+      const result = parseResult(raw);
+      const paths = result.errors?.map((error) => error.path) ?? [];
+
+      expect(paths).toContain('/a');
+      expect(paths).toContain('/b');
+    });
+
+    it('supports all and first error modes', async () => {
+      const noisySchema: JsonSchema = {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: {
+            type: 'string',
+            minLength: 2,
+            pattern: '^[A-Z]+$',
+          },
+        },
+      };
+      const allTool = createOutputValidator({
+        schema: noisySchema,
+        errorMode: 'all',
+      });
+      const firstTool = createOutputValidator({
+        schema: noisySchema,
+        errorMode: 'first',
+      });
+
+      const allRaw = await allTool.execute(
+        { content: JSON.stringify({ name: '' }) },
+        toolOpts,
+      );
+      const firstRaw = await firstTool.execute(
+        { content: JSON.stringify({ name: '' }) },
+        toolOpts,
+      );
+
+      expect(parseResult(allRaw).errors?.filter(({ path }) =>
+        path === '/name'
+      )).toHaveLength(2);
+      expect(parseResult(firstRaw).errors).toHaveLength(1);
     });
 
     it('returns a parse error when content is not valid JSON', async () => {
@@ -288,6 +587,21 @@ describe('output-validator tool', () => {
       expect(result.valid).toBe(true);
       expect(result.schemaId).toBeUndefined();
       expect(result.schemaHash).toMatch(/^[a-f0-9]{12}$/);
+    });
+
+    it('adds schema required fields and examples to the generated tool description', () => {
+      const tool = createOutputValidator({
+        schemaId: 'answer-v1',
+        schema,
+        example: { answer: 'yes', confidence: 0.9 },
+      });
+
+      expect(tool.description).toContain(
+        'Top-level required properties: answer, confidence.',
+      );
+      expect(tool.description).toContain(
+        'Example valid output: {"answer":"yes","confidence":0.9}.',
+      );
     });
   });
 

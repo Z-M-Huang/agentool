@@ -9,7 +9,10 @@ import {
   parseJsonContent,
   type OutputValidatorToolInput,
 } from './content.js';
+import { formatAjvErrors, type AjvValidationError } from './errors.js';
+import { isRecord } from './json-pointer.js';
 import { getPrompt } from './prompt.js';
+import { hasOneOfDiscriminator } from './schema.js';
 
 export { getPrompt as outputValidatorPrompt } from './prompt.js';
 
@@ -39,12 +42,19 @@ export interface OutputValidatorConfig {
   ajvOptions?: Record<string, unknown>;
   /** Override the default tool description. */
   description?: string;
+  /** Controls how many validation errors are returned. */
+  errorMode?: OutputValidatorErrorMode;
+  /** Minimal valid output example appended to the tool description. */
+  example?: JsonSchemaValue;
 }
+
+export type OutputValidatorErrorMode = 'all' | 'first-per-path' | 'first';
 
 export interface OutputValidationError {
   path: string;
   message: string;
   keyword: string;
+  instanceValue?: string;
   schemaPath?: string;
   params?: Record<string, unknown>;
 }
@@ -88,7 +98,11 @@ export function createOutputValidator(config: OutputValidatorConfig = {}) {
   const compiled = compileSchema(config);
 
   return tool({
-    description: config.description ?? getPrompt({ schemaId }),
+    description: config.description ?? getPrompt({
+      schemaId,
+      schema: config.schema,
+      example: config.example,
+    }),
     inputSchema: z
       .object({
         content: z
@@ -141,7 +155,11 @@ export function createOutputValidator(config: OutputValidatorConfig = {}) {
           schemaHash,
           message:
             'Output does not match the configured schema. Revise the JSON to address every error, then call output_validator again with the corrected full JSON document as the content string.',
-          errors: formatAjvErrors(compiled.validate.errors),
+          errors: formatAjvErrors(compiled.validate.errors, {
+            data: parsed.value,
+            schema: config.schema,
+            errorMode: config.errorMode ?? 'first-per-path',
+          }),
         });
       } catch (error: unknown) {
         const msg = extractErrorMessage(error);
@@ -171,6 +189,7 @@ function compileSchema(config: OutputValidatorConfig): CompileResult {
     const ajv = new Ajv({
       allErrors: true,
       strict: false,
+      ...(hasOneOfDiscriminator(config.schema) ? { discriminator: true } : {}),
       ...ajvOptions,
     });
     const validate = ajv.compile<unknown>(config.schema) as Validator;
@@ -181,45 +200,6 @@ function compileSchema(config: OutputValidatorConfig): CompileResult {
   } catch (error: unknown) {
     return { error: extractErrorMessage(error) };
   }
-}
-
-function formatAjvErrors(
-  errors: AjvValidationError[] | null | undefined,
-): OutputValidationError[] {
-  return (errors ?? []).map((error) => ({
-    path: getErrorPath(error),
-    message: error.message ?? `failed schema keyword "${error.keyword}"`,
-    keyword: error.keyword,
-    schemaPath: error.schemaPath,
-    params: error.params,
-  }));
-}
-
-function getErrorPath(error: AjvValidationError): string {
-  if (error.keyword === 'required') {
-    const missing = getMissingProperty(error.params);
-    if (missing) {
-      return appendJsonPointer(error.instancePath, missing);
-    }
-  }
-
-  return error.instancePath || '/';
-}
-
-function getMissingProperty(params: Record<string, unknown>): string | undefined {
-  const missing = params.missingProperty;
-  return typeof missing === 'string' && missing.length > 0
-    ? missing
-    : undefined;
-}
-
-function appendJsonPointer(base: string, segment: string): string {
-  const prefix = base && base !== '/' ? base : '';
-  return `${prefix}/${escapeJsonPointerSegment(segment)}`;
-}
-
-function escapeJsonPointerSegment(segment: string): string {
-  return segment.replace(/~/g, '~0').replace(/\//g, '~1');
 }
 
 function getSchemaLabel(schema: JsonSchema | undefined): string | undefined {
@@ -256,22 +236,10 @@ function stringifyResult(result: OutputValidationResult): string {
   return JSON.stringify(result, null, 2);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 type AjvOptions = ConstructorParameters<typeof Ajv>[0];
 
 interface Validator {
   (data: unknown): boolean;
   $async?: boolean;
   errors?: AjvValidationError[] | null;
-}
-
-interface AjvValidationError {
-  keyword: string;
-  instancePath: string;
-  schemaPath?: string;
-  params: Record<string, unknown>;
-  message?: string;
 }

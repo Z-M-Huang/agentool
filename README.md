@@ -400,6 +400,8 @@ const outputValidator = createOutputValidator({
       confidence: { type: 'number', minimum: 0, maximum: 1 },
     },
   },
+  example: { answer: 'Use the validator per turn.', confidence: 0.92 },
+  errorMode: 'first-per-path',
 });
 
 const result = await outputValidator.execute(
@@ -422,7 +424,11 @@ const tools = {
 
 If the schema changes on the next turn, create a new validator and pass it under the same tool name. No new chat session is required as long as your app rebuilds the tool list for that model call.
 
+Validation errors include `path`, `message`, `keyword`, Ajv metadata, and `instanceValue` when the failing JSON value can be resolved. `instanceValue` is compact JSON truncated to about 200 characters.
+
 **Parameters:** `content` (string, exact final JSON response text)
+
+**Config:** `schema`, `schemaId?`, `ajvOptions?`, `description?`, `example?`, `errorMode?` (`'all' | 'first-per-path' | 'first'`, default `'first-per-path'`)
 
 ---
 
