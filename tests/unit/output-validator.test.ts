@@ -340,6 +340,39 @@ describe('output-validator tool', () => {
       )).toBe(false);
     });
 
+    it('falls back to normal oneOf validation when auto-discriminator compilation fails', async () => {
+      const discriminatorSchema: JsonSchema = {
+        type: 'object',
+        discriminator: { propertyName: 'kind' },
+        oneOf: [
+          {
+            type: 'object',
+            required: ['a'],
+            properties: {
+              kind: { const: 'alpha' },
+              a: { type: 'string' },
+            },
+          },
+          {
+            type: 'object',
+            required: ['b'],
+            properties: {
+              kind: { const: 'beta' },
+              b: { type: 'string' },
+            },
+          },
+        ],
+      };
+      const tool = createOutputValidator({ schema: discriminatorSchema });
+
+      const raw = await tool.execute(
+        { content: JSON.stringify({ kind: 'alpha', a: 'ok' }) },
+        toolOpts,
+      );
+
+      expect(parseResult(raw)).toMatchObject({ valid: true });
+    });
+
     it('deduplicates to the first error per formatted path by default', async () => {
       const tool = createOutputValidator({
         schema: {
@@ -654,6 +687,41 @@ describe('output-validator tool', () => {
       );
 
       expect(raw).toContain('Async JSON Schemas are not supported');
+    });
+
+    it('respects explicit Ajv discriminator configuration errors', async () => {
+      const tool = createOutputValidator({
+        schema: {
+          type: 'object',
+          discriminator: { propertyName: 'kind' },
+          oneOf: [
+            {
+              type: 'object',
+              required: ['a'],
+              properties: {
+                kind: { const: 'alpha' },
+                a: { type: 'string' },
+              },
+            },
+            {
+              type: 'object',
+              required: ['b'],
+              properties: {
+                kind: { const: 'beta' },
+                b: { type: 'string' },
+              },
+            },
+          ],
+        },
+        ajvOptions: { discriminator: true },
+      });
+      const raw = await tool.execute(
+        { content: JSON.stringify({ kind: 'alpha', a: 'ok' }) },
+        toolOpts,
+      );
+
+      expect(raw).toContain('Invalid configured schema');
+      expect(raw).toContain('discriminator');
     });
 
     it('returns an error when schema validation throws at runtime', async () => {

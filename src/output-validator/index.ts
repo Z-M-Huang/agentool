@@ -184,22 +184,46 @@ function compileSchema(config: OutputValidatorConfig): CompileResult {
     return { error: 'No schema configured.' };
   }
 
+  const ajvOptions = config.ajvOptions as AjvOptions | undefined;
+  const autoEnableDiscriminator =
+    !hasOwnProperty(ajvOptions, 'discriminator') &&
+    hasOneOfDiscriminator(config.schema);
+  const primary = compileWithAjv(config.schema, {
+    ...(autoEnableDiscriminator ? { discriminator: true } : {}),
+    ...ajvOptions,
+  });
+
+  if (!('error' in primary) || !autoEnableDiscriminator) {
+    return primary;
+  }
+
+  return compileWithAjv(config.schema, ajvOptions);
+}
+
+function compileWithAjv(
+  schema: JsonSchema,
+  ajvOptions: AjvOptions | undefined,
+): CompileResult {
   try {
-    const ajvOptions = config.ajvOptions as AjvOptions | undefined;
     const ajv = new Ajv({
       allErrors: true,
       strict: false,
-      ...(hasOneOfDiscriminator(config.schema) ? { discriminator: true } : {}),
       ...ajvOptions,
     });
-    const validate = ajv.compile<unknown>(config.schema) as Validator;
-    if (validate.$async === true) {
-      return { error: 'Async JSON Schemas are not supported.' };
-    }
-    return { validate };
+    const validate = ajv.compile<unknown>(schema) as Validator;
+    return validate.$async === true
+      ? { error: 'Async JSON Schemas are not supported.' }
+      : { validate };
   } catch (error: unknown) {
     return { error: extractErrorMessage(error) };
   }
+}
+
+function hasOwnProperty(
+  value: unknown,
+  property: string,
+): boolean {
+  return isRecord(value) && Object.prototype.hasOwnProperty.call(value, property);
 }
 
 function getSchemaLabel(schema: JsonSchema | undefined): string | undefined {
