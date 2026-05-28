@@ -387,7 +387,10 @@ const result = await toolSearch.execute(
 Validate the exact final JSON response against a JSON Schema configured by the application.
 
 ```typescript
-import { createOutputValidator } from 'agentool/output-validator';
+import {
+  checkOutputValidatorUsage,
+  createOutputValidator,
+} from 'agentool/output-validator';
 
 const outputValidator = createOutputValidator({
   schemaId: 'answer-v1',
@@ -423,6 +426,32 @@ const tools = {
 ```
 
 If the schema changes on the next turn, create a new validator and pass it under the same tool name. No new chat session is required as long as your app rebuilds the tool list for that model call.
+
+After a model turn, check whether the validator was called. If the turn ended
+normally without validation, send the corrective prompt in the next interaction:
+
+```typescript
+const result = await generateText({
+  model,
+  tools,
+  prompt: 'Return the answer as JSON.',
+});
+const usage = checkOutputValidatorUsage(result);
+
+if (result.finishReason === 'stop' && !usage.wasCalled) {
+  await generateText({
+    model,
+    tools,
+    prompt: usage.correctivePrompt,
+  });
+}
+```
+
+For a custom tool key, pass the same name to the helper:
+
+```typescript
+checkOutputValidatorUsage(result, { toolName: 'json_guard' });
+```
 
 Validation errors include `path`, `message`, `keyword`, Ajv metadata, and `instanceValue` when the failing JSON value can be resolved. `instanceValue` is compact JSON truncated to about 200 characters.
 
@@ -863,7 +892,7 @@ import {
   webFetch, createWebFetch,
   webSearch, createWebSearch,
   toolSearch, createToolSearch,
-  outputValidator, createOutputValidator,
+  outputValidator, createOutputValidator, checkOutputValidatorUsage,
   httpRequest, createHttpRequest,
   memory, createMemory,
   multiEdit, createMultiEdit,
@@ -900,7 +929,7 @@ import { taskUpdate } from 'agentool/task-update';
 import { taskList } from 'agentool/task-list';
 import { webSearch } from 'agentool/web-search';
 import { toolSearch } from 'agentool/tool-search';
-import { outputValidator } from 'agentool/output-validator';
+import { outputValidator, checkOutputValidatorUsage } from 'agentool/output-validator';
 import { lsp } from 'agentool/lsp';
 import { compactMessages } from 'agentool/context-compaction'; // helper function
 import { askUser } from 'agentool/ask-user';
