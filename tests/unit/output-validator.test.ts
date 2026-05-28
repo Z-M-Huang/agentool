@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  checkOutputValidatorUsage,
   createOutputValidator,
   outputValidator,
   type JsonSchema,
@@ -13,6 +14,91 @@ function parseResult(raw: string): OutputValidationResult {
 }
 
 describe('output-validator tool', () => {
+  describe('turn usage helpers', () => {
+    it('reports a missing validator call and returns a corrective prompt', () => {
+      const result = checkOutputValidatorUsage({
+        finishReason: 'stop',
+        toolCalls: [],
+        steps: [],
+      });
+
+      expect(result).toMatchObject({
+        toolName: 'output_validator',
+        wasCalled: false,
+      });
+      expect(result.correctivePrompt).toContain(
+        'output_validator({"content":"<full JSON document as a string>"})',
+      );
+      expect(result.correctivePrompt).toContain('content string parameter');
+      expect(result.correctivePrompt).toContain(
+        'Do not return another final answer',
+      );
+    });
+
+    it('detects a top-level validator tool call', () => {
+      const result = checkOutputValidatorUsage({
+        finishReason: 'tool-calls',
+        toolCalls: [
+          { toolCallId: 'other-1', toolName: 'other_tool' },
+          { toolCallId: 'validator-1', toolName: 'output_validator' },
+        ],
+      });
+
+      expect(result).toEqual({
+        toolName: 'output_validator',
+        wasCalled: true,
+      });
+    });
+
+    it('detects a validator tool call inside multi-step results', () => {
+      const result = checkOutputValidatorUsage({
+        finishReason: 'stop',
+        toolCalls: [],
+        steps: [
+          { toolCalls: [{ toolCallId: 'search-1', toolName: 'web_search' }] },
+          {
+            toolCalls: [
+              { toolCallId: 'validator-1', toolName: 'output_validator' },
+            ],
+          },
+        ],
+      });
+
+      expect(result).toEqual({
+        toolName: 'output_validator',
+        wasCalled: true,
+      });
+    });
+
+    it('uses a custom validator tool name when provided', () => {
+      const turn = {
+        toolCalls: [{ toolCallId: 'validator-1', toolName: 'json_guard' }],
+      };
+
+      expect(checkOutputValidatorUsage(turn)).toMatchObject({
+        toolName: 'output_validator',
+        wasCalled: false,
+      });
+      expect(
+        checkOutputValidatorUsage(turn, { toolName: 'json_guard' }),
+      ).toEqual({
+        toolName: 'json_guard',
+        wasCalled: true,
+      });
+    });
+
+    it('uses the custom validator tool name in corrective prompts', () => {
+      const result = checkOutputValidatorUsage(
+        { finishReason: 'stop', toolCalls: [] },
+        { toolName: 'json_guard' },
+      );
+
+      expect(result.correctivePrompt).toContain(
+        'json_guard({"content":"<full JSON document as a string>"})',
+      );
+    });
+  });
+
   describe('default export', () => {
     it('exists and has an execute function', () => {
       expect(outputValidator).toBeDefined();

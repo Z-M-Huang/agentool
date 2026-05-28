@@ -53,14 +53,22 @@ export type { LspConfig } from './lsp/index.js';
 export { createHttpRequest, httpRequest, httpRequestPrompt } from './http-request/index.js';
 export type { HttpRequestConfig } from './http-request/index.js';
 
-export { createOutputValidator, outputValidator, outputValidatorPrompt } from './output-validator/index.js';
+export {
+  checkOutputValidatorUsage,
+  createOutputValidator,
+  outputValidator,
+  outputValidatorPrompt,
+} from './output-validator/index.js';
 export type {
   JsonSchema,
   JsonSchemaObject,
   JsonSchemaValue,
   OutputValidationError,
   OutputValidationResult,
+  OutputValidatorTurnLike,
   OutputValidatorConfig,
+  OutputValidatorUsageOptions,
+  OutputValidatorUsageResult,
 } from './output-validator/index.js';
 
 export { compactMessages } from './middleware/context-compaction/index.js';

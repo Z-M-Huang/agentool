@@ -15,6 +15,12 @@ import { getPrompt } from './prompt.js';
 import { hasOneOfDiscriminator } from './schema.js';
 
 export { getPrompt as outputValidatorPrompt } from './prompt.js';
+export { checkOutputValidatorUsage } from './usage.js';
+export type {
+  OutputValidatorTurnLike,
+  OutputValidatorUsageOptions,
+  OutputValidatorUsageResult,
+} from './usage.js';
 
 export type JsonSchemaValue =
   | string
